@@ -1,0 +1,27 @@
+scipy<=1.1.0
+sklearn
+h5py
+numpy
+ipython<=5.5.0
+matplotlib==2.0.0
+NearPy
+Pillow
+python-dateutil
+PyYAML
+scikit-image==0.11.3
+scikit-learn
+six
+trimesh
+pyhull
+cvxopt
+mayavi
+pandas
+visualization
+pyquaternion
+numba
+autolab-core==0.0.4
+autolab-perception
+# torch>=0.4.1
+tensorboardX
+PyQt5
+Pillow<=4.3.0
