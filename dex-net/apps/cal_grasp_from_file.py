@@ -355,7 +355,7 @@ if __name__ == '__main__':
 
     cam_pos = [0, 0, 0]
     # pcd_file = "/home/sdhm/Projects/GPD_PointNet/PointNetGPD/data/ycb_rgbd/003_cracker_box/clouds/pc_NP1_NP5_60.pcd"
-    pcd_file = "/home/sdhm/Projects/kinect2_cloud_samples/data/1/0001_cloud.pcd"
+    pcd_file = "/home/sdhm/图片/kinect2_cloud_samples/data/1/0001_cloud.pcd"
 
     cloud = pcl.load(pcd_file)
 

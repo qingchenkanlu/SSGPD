@@ -20,17 +20,17 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 USE_OPENRAVE = True
-try:
-    import openravepy as rave
-except ImportError:
-    logger.warning('Failed to import OpenRAVE')
-    USE_OPENRAVE = False
+# try:
+#     import openravepy as rave
+# except ImportError:
+#     logger.warning('Failed to import OpenRAVE')
+#     USE_OPENRAVE = False
 
-try:
-    import rospy
-    import moveit_commander
-except ImportError:
-    logger.warning("Failed to import rospy, you can't grasp now.")
+# try:
+#     import rospy
+#     import moveit_commander
+# except ImportError:
+#     logger.warning("Failed to import rospy, you can't grasp now.")
 
 try:
     from mayavi import mlab

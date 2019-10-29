@@ -28,11 +28,11 @@ import time
 import numpy as np
 
 USE_OPENRAVE = True
-try:
-    import openravepy as rave
-except:
-    logging.warning('Failed to import OpenRAVE')
-    USE_OPENRAVE = False
+# try:
+#     import openravepy as rave
+# except:
+#     logging.warning('Failed to import OpenRAVE')
+#     USE_OPENRAVE = False
 try:
     import mayavi.mlab as mv
 except:

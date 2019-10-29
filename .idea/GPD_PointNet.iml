@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/PointNetGPD" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/dex-net/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/meshpy" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/dex-net/apps" isTestSource="false" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.5 (pt1.0)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

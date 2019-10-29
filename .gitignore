@@ -9,7 +9,14 @@ PointNetGPDchann_3/
 PointNetGPD/fullpc/
 PointNetGPD/1view/
 
-python-pcl/
+3rdparty/python-pcl/
+3rdparty/autolab_core/build
+3rdparty/autolab_core/autolab_core.egg-info
+3rdparty/autolab_perception/build
+3rdparty/autolab_perception/autolab_perception.egg-info
+3rdparty/meshpy/build
+3rdparty/meshpy/meshpy.egg-info
+
 # Created by https://www.gitignore.io/api/vim,python,pycharm,jupyternotebook
 
 ### JupyterNotebook ###

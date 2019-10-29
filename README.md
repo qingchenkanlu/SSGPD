@@ -21,6 +21,7 @@ cd $HOME/code/
     cd $HOME/code/grasp-pointnet
     pip install -r requirements.txt
     ```
+
 1. Install our modified meshpy (Modify from [Berkeley Automation Lab: meshpy](https://github.com/BerkeleyAutomation/meshpy))
     ```bash
     cd $HOME/code/grasp-pointnet/meshpy
@@ -32,7 +33,23 @@ cd $HOME/code/
     cd $HOME/code/grasp-pointnet/dex-net
     python setup.py develop
     ```
+
+1. Install our modified autolab_core (Modify from [Berkeley Automation Lab: autolab_core](https://github.com/BerkeleyAutomation/autolab_core.git))
+
+    ```
+    cd $HOME/code/grasp-pointnet/autolab_core
+    python setup.py install
+    ```
+
+1. Install our modified autolab_core (Modify from [Berkeley Automation Lab: autolab_perception](https://github.com/BerkeleyAutomation/perception.git))
+
+    ```
+    cd $HOME/code/grasp-pointnet/autolab_perception
+    pip install -e .
+    ```
+
 1. Modify the gripper configurations to your own gripper
+
     ```bash
     vim $HOME/code/grasp-pointnet/dex-net/data/grippers/robotiq_85/params.json
     ```
