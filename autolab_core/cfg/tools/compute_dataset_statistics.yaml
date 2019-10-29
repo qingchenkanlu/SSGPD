@@ -1,0 +1,12 @@
+analysis_fields:
+  - rewards
+
+num_percentiles: 10
+thresholds:
+  - 0.0
+log_rate: 100
+
+font_size: 15
+line_width: 5
+dpi: 100
+num_bins: 25

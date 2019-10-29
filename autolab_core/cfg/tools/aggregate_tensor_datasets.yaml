@@ -1,0 +1,10 @@
+input_datasets:
+  - /mnt/data/datasets/knapp/large_suction/grasps
+  - /mnt/data/datasets/knapp/large_suction_no_segmask/grasps
+
+output_dataset: /mnt/data/datasets/knapp/large_suction_big
+
+exclude_fields:
+  - color_ims
+
+display_rate: 1

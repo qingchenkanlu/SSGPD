@@ -1,0 +1,24 @@
+calib_dir: /nfs/diskstation/calib
+
+sensors:
+  phoxi:
+  phoxi:
+    type: phoxi
+    frame: phoxi
+    device_name: 1703005
+    size: small
+    num_images: 5
+
+vis: 1
+
+# workspace definition(for segmentation)
+workspace:
+  min_pt:
+    - 0.21
+    - -0.225
+    - 0.0025
+
+  max_pt:
+    - 0.565
+    - 0.225
+    - 0.2
