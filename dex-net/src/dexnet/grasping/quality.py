@@ -49,10 +49,6 @@ import meshpy.sdf_file as sdf_file
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-try:
-    import mayavi.mlab as mv
-except:
-    logging.warning('Failed to import mayavi')
 import IPython
 
 # turn off output logging

@@ -29,10 +29,6 @@ import copy
 import itertools as it
 import logging
 import matplotlib.pyplot as plt
-try:
-    import mayavi.mlab as mlab
-except:
-    logging.warning('Failed to import mayavi')
 
 import numpy as np
 import os

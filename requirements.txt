@@ -21,6 +21,6 @@ pyquaternion
 numba
 autolab-core==0.0.4
 autolab-perception
-# torch>=0.4.1
+torch>=0.4.1
 tensorboardX
-PyQt5
+PyQt4

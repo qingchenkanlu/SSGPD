@@ -3,9 +3,7 @@ from abc import ABCMeta, abstractmethod
 import copy
 import logging
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
-# import os, IPython, sys
 import random
 import time
 import scipy.stats as stats
@@ -19,26 +17,14 @@ import scipy
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-USE_OPENRAVE = True
-# try:
-#     import openravepy as rave
-# except ImportError:
-#     logger.warning('Failed to import OpenRAVE')
-#     USE_OPENRAVE = False
-
-# try:
-#     import rospy
-#     import moveit_commander
-# except ImportError:
-#     logger.warning("Failed to import rospy, you can't grasp now.")
-
 try:
-    from mayavi import mlab
-    # mlab.figure(bgcolor=(1, 1, 1), size=(640, 480))
-    # mlab.clf()
-except ImportError:
-    mlab = []
-    logger.warning('Do not have mayavi installed, please set the vis to False')
+    import mayavi.mlab as mlab
+except:
+    try:
+        import mayavi.mlab as mlab
+    except ImportError:
+        mlab = []
+        logging.error('Failed to import mayavi')
 
 """
 Copyright ©2017. The Regents of the University of California (Regents). All Rights Reserved.
