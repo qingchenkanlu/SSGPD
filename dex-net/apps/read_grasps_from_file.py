@@ -27,9 +27,9 @@ import glob
 
 # global configurations:
 home_dir = os.environ['HOME']
-yaml_config = YamlConfig(home_dir + "/Projects/PointNetGPD/dex-net/test/config.yaml")
+yaml_config = YamlConfig(home_dir + "/Projects/GPD_PointNet/dex-net/test/config.yaml")
 gripper_name = 'robotiq_85'
-gripper = RobotGripper.load(gripper_name, home_dir + "/Projects/PointNetGPD/dex-net/data/grippers")
+gripper = RobotGripper.load(gripper_name, home_dir + "/Projects/GPD_PointNet/dex-net/data/grippers")
 ags = GpgGraspSampler(gripper, yaml_config)
 save_fig = False  # save fig as png file
 show_fig = True  # show the mayavi figure
@@ -71,14 +71,14 @@ def fuzzy_finder(user_input, collection):
 
 
 def open_pickle_and_obj(name_to_open_):
-    pickle_names_ = get_pickle_file_name(home_dir + "/Projects/PointNetGPD/dex-net/apps/generated_grasps")
+    pickle_names_ = get_pickle_file_name(home_dir + "/Projects/GPD_PointNet/dex-net/apps/generated_grasps")
     suggestion_pickle = fuzzy_finder(name_to_open_, pickle_names_)
     if len(suggestion_pickle) != 1:
         print("Pickle file suggestions:", suggestion_pickle)
         exit("Name error for pickle file!")
     pickle_m_ = pickle.load(open(suggestion_pickle[0], 'rb'))
 
-    file_dir = home_dir + "/Projects/PointNetGPD/dataset/ycb_meshes_google/"
+    file_dir = home_dir + "/Projects/GPD_PointNet/dataset/ycb_meshes_google/"
     file_list_all = get_file_name(file_dir)
     new_sug = re.findall(r'_\d+', suggestion_pickle[0], flags=0)
     new_sug = new_sug[0].split('_')
@@ -102,7 +102,7 @@ def open_pickle_and_obj(name_to_open_):
         sdf = sf.read()
         obj_ = GraspableObject3D(sdf, mesh)
     else:
-        cloud_path = home_dir + "/Projects/PointNetGPD/PointNetGPD/data/ycb_rgbd/" + object_name_ + "/clouds/"
+        cloud_path = home_dir + "/Projects/GPD_PointNet/PointNetGPD/data/ycb_rgbd/" + object_name_ + "/clouds/"
         pcd_files = glob.glob(cloud_path + "*.pcd")
         obj_ = pcd_files
         obj_.sort()
@@ -121,7 +121,7 @@ def display_gripper_on_object(obj_, grasp_):
     # transfer wrong was fixed by the previews comment of meshpy modification.
     # gripper_name = 'robotiq_85'
     # home_dir = os.environ['HOME']
-    # gripper = RobotGripper.load(gripper_name, home_dir + "/Projects/PointNetGPD/dex-net/data/grippers")
+    # gripper = RobotGripper.load(gripper_name, home_dir + "/Projects/GPD_PointNet/dex-net/data/grippers")
     # stable_pose = self.dataset.stable_pose(object.key, 'pose_1')
     # T_obj_world = RigidTransform(from_frame='obj', to_frame='world')
     t_obj_gripper = grasp_.gripper_pose(gripper)
@@ -257,7 +257,7 @@ if __name__ == '__main__':
                 show_selected_grasps_with_color(grasps_with_score, ply_name, obj_name, obj)  # 显示
 
     elif show_fig or save_fig or generate_new_file:  # show all objects in directory
-        pickle_names = get_pickle_file_name(home_dir + "/Projects/PointNetGPD/dex-net/apps/generated_grasps")
+        pickle_names = get_pickle_file_name(home_dir + "/Projects/GPD_PointNet/dex-net/apps/generated_grasps")
         pickle_names.sort()
         print("[INFO] pickle names:", pickle_names)
         for i in range(len(pickle_names)):
@@ -281,7 +281,7 @@ if __name__ == '__main__':
 
     elif check_pcd_grasp_points:
         print("[INFO] check pcd grasp points.")
-        pickle_names = get_pickle_file_name(home_dir + "/Projects/PointNetGPD/dex-net/apps/generated_grasps/new0704")
+        pickle_names = get_pickle_file_name(home_dir + "/Projects/GPD_PointNet/dex-net/apps/generated_grasps/new0704")
         pickle_names.sort()
         for i in range(len(pickle_names)):
             print(pickle_names[i])

@@ -71,7 +71,7 @@ def do_job(job_i):
 
 if __name__ == '__main__':
     home_dir = os.environ['HOME']
-    file_dir = home_dir + "/Projects/PointNetGPD/dataset/ycb_meshes_google/"  # for google ycb
+    file_dir = home_dir + "/Projects/GPD_PointNet/dataset/ycb_meshes_google/"  # for google ycb
     mlab.figure(bgcolor=(1, 1, 1), fgcolor=(0.7, 0.7, 0.7))
     file_list_all = get_file_name(file_dir)
     object_numbers = file_list_all.__len__()

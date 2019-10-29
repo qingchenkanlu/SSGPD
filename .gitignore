@@ -8,6 +8,8 @@ PointNetGPD/chann_12/
 PointNetGPDchann_3/
 PointNetGPD/fullpc/
 PointNetGPD/1view/
+
+python-pcl/
 # Created by https://www.gitignore.io/api/vim,python,pycharm,jupyternotebook
 
 ### JupyterNotebook ###
@@ -108,6 +110,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.zip
+*.tar.gz
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -201,9 +205,9 @@ tags
 
 # for latex files
 *.aux
-*.log 
+*.log
 *.nav
-*.out 
+*.out
 *.snm
 *.toc
 *.synctex.gz

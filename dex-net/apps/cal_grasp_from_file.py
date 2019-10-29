@@ -31,9 +31,9 @@ sys.path.append(os.environ['HOME'] + "/code/grasp-pointnet/PointNetGPD")
 
 
 # global config:
-yaml_config = YamlConfig(os.environ['HOME'] + "/Projects/PointNetGPD/dex-net/test/config.yaml")
+yaml_config = YamlConfig(os.environ['HOME'] + "/Projects/GPD_PointNet/dex-net/test/config.yaml")
 gripper_name = 'robotiq_85'
-gripper = RobotGripper.load(gripper_name, os.environ['HOME'] + "/Projects/PointNetGPD/dex-net/data/grippers")
+gripper = RobotGripper.load(gripper_name, os.environ['HOME'] + "/Projects/GPD_PointNet/dex-net/data/grippers")
 ags = GpgGraspSamplerPclPcd(gripper, yaml_config)
 # ags = AntipodalGraspSampler(gripper, yaml_config)
 value_fc = 0.4  # no use, set a random number
@@ -354,7 +354,7 @@ if __name__ == '__main__':
     """
 
     cam_pos = [0, 0, 0]
-    # pcd_file = "/home/sdhm/Projects/PointNetGPD/PointNetGPD/data/ycb_rgbd/003_cracker_box/clouds/pc_NP1_NP5_60.pcd"
+    # pcd_file = "/home/sdhm/Projects/GPD_PointNet/PointNetGPD/data/ycb_rgbd/003_cracker_box/clouds/pc_NP1_NP5_60.pcd"
     pcd_file = "/home/sdhm/Projects/kinect2_cloud_samples/data/1/0001_cloud.pcd"
 
     cloud = pcl.load(pcd_file)

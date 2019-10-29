@@ -14,9 +14,9 @@ from dexnet.grasping import GpgGraspSampler
 from dexnet.grasping import RobotGripper
 
 home_dir = os.environ['HOME']
-yaml_config = YamlConfig(home_dir + "/Projects/PointNetGPD/dex-net/test/config.yaml")
+yaml_config = YamlConfig(home_dir + "/Projects/GPD_PointNet/dex-net/test/config.yaml")
 gripper_name = 'robotiq_85'
-gripper = RobotGripper.load(gripper_name, home_dir + "/Projects/PointNetGPD/dex-net/data/grippers")
+gripper = RobotGripper.load(gripper_name, home_dir + "/Projects/GPD_PointNet/dex-net/data/grippers")
 ags = GpgGraspSampler(gripper, yaml_config)
 
 
@@ -664,7 +664,7 @@ class PointGraspOneViewDataset(torch.utils.data.Dataset):
         vis = False
         if vis:  # NOTE：此处获得的抓取姿态可能与点云存在碰撞(影响不是很大)！！！ TODO：碰撞检查
             mlab.figure(bgcolor=(1, 1, 1), size=(1000, 800))
-            mlab.pipeline.surface(mlab.pipeline.open("/home/sdhm/Projects/PointNetGPD/PointNetGPD/data/"
+            mlab.pipeline.surface(mlab.pipeline.open("/home/sdhm/Projects/GPD_PointNet/PointNetGPD/data/"
                                                      "ycb_meshes_google/003_cracker_box/google_512k/nontextured.ply"))
             # ---扫描仪坐标系下---：
             # 世界坐标系
@@ -730,7 +730,7 @@ class PointGraspOneViewDataset(torch.utils.data.Dataset):
         vis = False
         if vis:  # 显示手抓闭合区域内点云
             mlab.figure(bgcolor=(1, 1, 1), size=(1000, 800))
-            mlab.pipeline.surface(mlab.pipeline.open("/home/sdhm/Projects/PointNetGPD/PointNetGPD/data/"
+            mlab.pipeline.surface(mlab.pipeline.open("/home/sdhm/Projects/GPD_PointNet/PointNetGPD/data/"
                                                      "ycb_meshes_google/003_cracker_box/google_512k/nontextured.ply"))
             # 世界坐标系
             show_line([0, 0, 0], [0.1, 0, 0], color='r', scale_factor=.0015)
@@ -786,7 +786,7 @@ class PointGraspOneViewDataset(torch.utils.data.Dataset):
         vis = False
         if vis:  # 显示手抓闭合区域内点云
             mlab.figure(bgcolor=(1, 1, 1), size=(1000, 800))
-            # mlab.pipeline.surface(mlab.pipeline.open("/home/sdhm/Projects/PointNetGPD/PointNetGPD/data/"
+            # mlab.pipeline.surface(mlab.pipeline.open("/home/sdhm/Projects/GPD_PointNet/PointNetGPD/data/"
             #                                          "ycb_meshes_google/003_cracker_box/google_512k/nontextured.ply"))
             # 世界坐标系
             # show_line([0, 0, 0], [0.07, 0, 0], color='r', scale_factor=.0020)

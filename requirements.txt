@@ -24,4 +24,3 @@ autolab-perception
 # torch>=0.4.1
 tensorboardX
 PyQt5
-Pillow<=4.3.0

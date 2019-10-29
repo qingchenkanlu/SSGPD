@@ -3,7 +3,7 @@
 # Author     : Hongzhuo Liang 
 # E-mail     : liang@informatik.uni-hamburg.de
 # Description: 
-# Date       : 20/05/2018 2:45 PM 
+# Date       : 20/05/2018 2:45 PM
 # File Name  : generate-dataset-canny.py
 import numpy as np
 import sys
@@ -61,9 +61,9 @@ def worker(i, sample_nums, grasp_amount, good_grasp):
     object_name = file_list_all[i][len(home_dir) + 48:-12]
     print('a worker of task {} start'.format(object_name))
 
-    yaml_config = YamlConfig(home_dir + "/Projects/PointNetGPD/dex-net/test/config.yaml")
+    yaml_config = YamlConfig(home_dir + "/Projects/GPD_PointNet/dex-net/test/config.yaml")
     gripper_name = 'robotiq_85'
-    gripper = RobotGripper.load(gripper_name, home_dir + "/Projects/PointNetGPD/dex-net/data/grippers")
+    gripper = RobotGripper.load(gripper_name, home_dir + "/Projects/GPD_PointNet/dex-net/data/grippers")
     grasp_sample_method = "antipodal"
     if grasp_sample_method == "uniform":
         ags = UniformGraspSampler(gripper, yaml_config)
@@ -163,7 +163,7 @@ if __name__ == '__main__':
     else:
         filename_prefix = "default"
     home_dir = os.environ['HOME']
-    file_dir = home_dir + "/Projects/PointNetGPD/dataset/ycb_meshes_google/"
+    file_dir = home_dir + "/Projects/GPD_PointNet/dataset/ycb_meshes_google/"
     file_list_all = get_file_name(file_dir)
     object_numbers = file_list_all.__len__()
     print("[file_list_all]:", file_list_all, object_numbers, "\n")
