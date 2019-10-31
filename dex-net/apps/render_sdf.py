@@ -86,7 +86,7 @@ def render_sdf(obj_, object_name_):
     # # from IPython import embed; embed()
     surface_points = obj_.sdf.surface_points()[0]
     surface_points = np.array(surface_points)
-    ind = np.random.choice(np.arange(len(surface_points)), 1000)
+    ind = np.random.choice(np.arange(len(surface_points)), 2000)
     x = surface_points[ind, 0]
     y = surface_points[ind, 1]
     z = surface_points[ind, 2]
@@ -104,8 +104,11 @@ if __name__ == '__main__':
     home_dir = os.environ['HOME']
     file_dir = home_dir + "/Projects/GPD_PointNet/dataset/ycb_meshes_google/003_cracker_box"
 
-    sf = SdfFile(file_dir + "/google_512k/nontextured.sdf")
-    of = ObjFile(file_dir + "/google_512k/nontextured.obj")
+    # sf = SdfFile(file_dir + "/google_512k/nontextured.sdf")
+    # of = ObjFile(file_dir + "/google_512k/nontextured.obj")
+    sf = SdfFile("/home/sdhm/test/mesh_ascii.sdf")
+    of = ObjFile("/home/sdhm/test/mesh_ascii.obj")
+
     mesh = of.read()
     sdf = sf.read()
     obj = GraspableObject3D(sdf, mesh)

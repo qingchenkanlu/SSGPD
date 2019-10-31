@@ -16,11 +16,13 @@ import numpy as np
 from dexnet.visualization.visualizer3d import DexNetVisualizer3D as Vis
 from dexnet.grasping import RobotGripper
 from autolab_core import YamlConfig
+
 try:
     from mayavi import mlab
 except ImportError:
     print("can not import mayavi")
     mlab = None
+
 from dexnet.grasping import GpgGraspSampler  # temporary way for show 3D gripper using mayavi
 import pcl
 import glob
@@ -161,11 +163,16 @@ def display_grasps(grasps, graspable, color):
 
 
 def show_selected_grasps_with_color(m, ply_name_, title, obj_):
-    m_good = m[m[:, 1] <= 0.4]
-    m_good = m_good[np.random.choice(len(m_good), size=25, replace=True)]  # 随机选择25个显示
-    m_bad = m[m[:, 1] >= 1.8]
-    m_bad = m_bad[np.random.choice(len(m_bad), size=25, replace=True)]  # 随机选择25个显示
+    m_good = m[m[:, 1] < 0.6]  # NOTE: 摩擦系数<=0.6为质量高的抓取
+    m_good = m_good[m_good[:, 1] > 0.0]
+    m_good = m_good[np.random.choice(len(m_good), size=5, replace=True)]  # 随机选择25个显示
+    m_bad = m[m[:, 1] > 0.7]  # NOTE: 摩擦系数>=0.7为质量低的抓取
+    m_bad = m_bad[m_bad[:, 1] < 3.0]
+    m_bad = m_bad[np.random.choice(len(m_bad), size=5, replace=True)]  # 随机选择25个显示
     collision_grasp_num = 0
+
+    for a in m_good:
+        print(a[0])
 
     if save_fig or show_fig:
         # fig 1: good grasps

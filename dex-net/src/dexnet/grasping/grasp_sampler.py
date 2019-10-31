@@ -26,31 +26,6 @@ except:
         mlab = []
         logging.error('Failed to import mayavi')
 
-"""
-Copyright ©2017. The Regents of the University of California (Regents). All Rights Reserved.
-Permission to use, copy, modify, and distribute this software and its documentation for educational,
-research, and not-for-profit purposes, without fee and without a signed licensing agreement, is
-hereby granted, provided that the above copyright notice, this paragraph and the following two
-paragraphs appear in all copies, modifications, and distributions. Contact The Office of Technology
-Licensing, UC Berkeley, 2150 Shattuck Avenue, Suite 510, Berkeley, CA 94720-1620, (510) 643-
-7201, otl@berkeley.edu, http://ipira.berkeley.edu/industry-info for commercial licensing opportunities.
-
-IN NO EVENT SHALL REGENTS BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL,
-INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF
-THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF REGENTS HAS BEEN
-ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-REGENTS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
-HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
-MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-"""
-"""
-Classes for sampling grasps.
-Author: Jeff Mahler
-"""
-
 
 # class GraspSampler(metaclass=ABCMeta):
 class GraspSampler:
@@ -107,6 +82,7 @@ class GraspSampler:
         return grasp
         # pass
 
+    # NOTE: Unused
     def generate_grasps_stable_poses(self, graspable, stable_poses, target_num_grasps=None, grasp_gen_mult=5,
                                      max_iter=3, sample_approach_angles=False, vis=False, **kwargs):
         """Samples a set of grasps for an object, aligning the approach angles to the object stable poses.
@@ -154,10 +130,8 @@ class GraspSampler:
         ----------
         graspable : :obj:`GraspableObject3D`
             the object to grasp
-        target_num_grasps : int
-            number of grasps to return, defualts to self.target_num_grasps
-        grasp_gen_mult : int
-            number of additional grasps to generate
+        target_num_grasps : 目标返回抓取姿态数, 即满足条件的抓取姿态数
+        grasp_gen_mult : sample_grasps的目标采样个数＝target_num_grasps*grasp_gen_mult, 即允许采样的个数, 之后还要筛选
         max_iter : int
             number of attempts to return an exact number of grasps before giving up
         sample_approach_angles : bool
@@ -177,13 +151,15 @@ class GraspSampler:
 
         print("[INFO] generate grasps... target_num_grasps:", target_num_grasps)
 
+        if 'random_approach_angle' in kwargs:
+            print("[INFO] use random_approach_angle:", kwargs['random_approach_angle'])
+
         grasps = []
         k = 1
         while num_grasps_remaining > 0 and k <= max_iter:  # 循环采样直到有 target_num_grasps 个抓取姿态, 或超过循环次数
+            print("num_grasps_remaining:", num_grasps_remaining)
             # SAMPLING: generate more than we need
-            num_grasps_generate = grasp_gen_mult * num_grasps_remaining
-            print("num_grasps_generate:", num_grasps_generate, "grasp_gen_mult:", grasp_gen_mult,
-                  "num_grasps_remaining:", num_grasps_remaining)
+            num_grasps_generate = grasp_gen_mult * num_grasps_remaining  # NOTE: Unused in AntipodalGraspSampler!
             new_grasps = self.sample_grasps(graspable, num_grasps_generate, vis, **kwargs)  # 通过力闭合进行抓取姿态采样
 
             # COVERAGE REJECTION: prune grasps by distance 通过距离删减抓取姿态
@@ -201,6 +177,9 @@ class GraspSampler:
                 if min_dist >= self.grasp_dist_thresh_:
                     pruned_grasps.append(grasp)
 
+            for grasp in new_grasps:
+                pruned_grasps.append(grasp)
+
             # ANGLE EXPANSION sample grasp rotations around the axis
             candidate_grasps = []
             if sample_approach_angles:
@@ -208,8 +187,8 @@ class GraspSampler:
                     # construct a set of rotated grasps
                     for i in range(self.num_grasp_rots):
                         rotated_grasp = copy.copy(grasp)
-                        delta_theta = 0  # add by Hongzhuo Liang
-                        print("This function can not use yet, as delta_theta is not set. --Hongzhuo Liang")
+                        delta_theta = 0
+                        print("This function can not use yet, as delta_theta is not set!")
                         rotated_grasp.set_approach_angle(i * delta_theta)
                         candidate_grasps.append(rotated_grasp)
             else:
@@ -217,20 +196,17 @@ class GraspSampler:
 
             # add to the current grasp set
             grasps += candidate_grasps
-            logger.info('%d/%d grasps found after iteration %d.',
-                        len(grasps), target_num_grasps, k)
+            logger.info('%d/%d grasps found after iteration %d.', len(grasps), target_num_grasps, k)
 
             grasp_gen_mult *= 2
             num_grasps_remaining = target_num_grasps - len(grasps)
             print("[INFO] Have generated grasps at present:", len(grasps))
             k += 1
 
-
         # shuffle computed grasps
         random.shuffle(grasps)
         if len(grasps) > target_num_grasps:
-            logger.info('Truncating %d grasps to %d.',
-                        len(grasps), target_num_grasps)
+            logger.info('Truncating %d grasps to %d.', len(grasps), target_num_grasps)
             grasps = grasps[:target_num_grasps]
         logger.info('Found %d grasps.', len(grasps))
         return grasps
@@ -393,12 +369,12 @@ class GraspSampler:
             self.show_points(points_g)
             if len(points_in_area) != 0:
                 self.show_points(points_g[points_in_area], color='r')
-            mlab.show()
+            # mlab.show()
 
         # print("points_in_area", way, len(points_in_area))
         return has_p, points_in_area
 
-    def show_all_grasps(self, all_points, grasps_for_show):
+    def show_all_grasps(self, grasps_for_show):
 
         for grasp_ in grasps_for_show:
             grasp_bottom_center = grasp_[4]  # new feature: ues the modified grasp bottom center
@@ -406,8 +382,10 @@ class GraspSampler:
             binormal = grasp_[2]
             hand_points = self.get_hand_points(grasp_bottom_center, approach_normal, binormal)
             self.show_grasp_3d(hand_points)
-        # self.show_points(all_points)
-        # mlab.show()
+
+    def show_surface_points(self, graspable):
+        surface_points, _ = graspable.sdf.surface_points(grid_basis=False)
+        self.show_points(surface_points)
 
     def check_collide(self, grasp_bottom_center, approach_normal, binormal, minor_pc, graspable, hand_points):
         bottom_points = self.check_collision_square(grasp_bottom_center, approach_normal,
@@ -465,6 +443,495 @@ class GraspSampler:
         if np.linalg.norm(major_pc) != 0:
             major_pc = major_pc / np.linalg.norm(major_pc)
         return old_normal, new_normal, major_pc, minor_pc
+
+    def display_grasps3d(self, grasps, color):
+        """
+        display ParrallelJawPtGrasp3D
+        """
+        if color == 'b':
+            color_f = (0, 0, 1)
+        elif color == 'r':
+            color_f = (1, 0, 0)
+        elif color == 'g':
+            color_f = (0, 1, 0)
+        elif color == 'lb':  # light blue
+            color_f = (0.22, 1, 1)
+        else:
+            color_f = (1, 1, 1)
+        for grasp in grasps:
+            approach_normal = grasp.rotated_full_axis[:, 0]
+            approach_normal = approach_normal / np.linalg.norm(approach_normal)
+            major_pc = grasp.configuration[3:6]
+            major_pc = major_pc / np.linalg.norm(major_pc)
+            # minor_pc = np.cross(approach_normal, major_pc)
+            center_point = grasp.center
+            # print("grasps.center", grasp.center, grasp.center.shape)
+            grasp_bottom_center = -self.gripper.hand_depth * approach_normal + center_point
+            hand_points = self.get_hand_points(grasp_bottom_center, approach_normal, major_pc)
+            # print("hand_points:", hand_points)
+
+            self.show_grasp_3d(hand_points, color=color_f)
+
+    def show(self):
+        mlab.show()
+
+
+class AntipodalGraspSampler(GraspSampler):
+    """ Samples antipodal pairs using rejection sampling.
+    The proposal sampling ditribution is to choose a random point on
+    the object surface, then sample random directions within the friction cone,
+    then form a grasp axis along the direction,
+    close the fingers, and keep the grasp if the other contact point is also in the friction cone.
+    """
+
+    def sample_from_cone(self, n, tx, ty, num_samples=1):
+        """ Samples directoins from within the friction cone using uniform sampling.
+
+        Parameters
+        ----------
+        n : 3x1 normalized :obj:`numpy.ndarray`
+            surface normal
+        tx : 3x1 normalized :obj:`numpy.ndarray`
+            tangent x vector
+        ty : 3x1 normalized :obj:`numpy.ndarray`
+            tangent y vector
+        num_samples : int
+            number of directions to sample
+
+        Returns
+        -------
+        v_samples : :obj:`list` of 3x1 :obj:`numpy.ndarray`
+            sampled directions in the friction cone
+       """
+        v_samples = []
+        for i in range(num_samples):
+            theta = 2 * np.pi * np.random.rand()
+            r = self.friction_coef * np.random.rand()
+            v = n + r * np.cos(theta) * tx + r * np.sin(theta) * ty
+            v = -v / np.linalg.norm(v)
+            v_samples.append(v)
+        return v_samples
+
+    def within_cone(self, cone, n, v):
+        """
+        Checks whether or not a direction is in the friction cone.
+        This is equivalent to whether a grasp will slip using a point contact model.
+
+        Parameters
+        ----------
+        cone : 3xN :obj:`numpy.ndarray`
+            supporting vectors of the friction cone
+        n : 3x1 :obj:`numpy.ndarray`
+            outward pointing surface normal vector at c1
+        v : 3x1 :obj:`numpy.ndarray`
+            direction vector
+
+        Returns
+        -------
+        in_cone : bool
+            True if alpha is within the cone
+        alpha : float
+            the angle between the normal and v
+        """
+        if (v.dot(cone) < 0).any():  # v should point in same direction as cone
+            v = -v  # don't worry about sign, we don't know it anyway...
+        f = -n / np.linalg.norm(n)
+        alpha = np.arccos(f.T.dot(v) / np.linalg.norm(v))
+        return alpha <= np.arctan(self.friction_coef), alpha
+
+    def perturb_point(self, x, scale):
+        """ Uniform random perturbations to a point 均匀随机扰动"""
+        x_samp = x + (scale / 2.0) * (np.random.rand(3) - 0.5)
+        return x_samp
+
+    def sample_grasps(self, graspable, num_grasps, vis=False, **kwargs):
+        """Returns a list of candidate grasps for graspable object.
+
+        Parameters
+        ----------
+        graspable : :obj:`GraspableObject3D`
+            the object to grasp
+        num_grasps : int
+            number of grasps to sample NOTE: Unused in AntipodalGraspSampler!
+        vis : bool
+            whether or not to visualize progress, for debugging
+
+        Returns
+        -------
+        :obj:`list` of :obj:`ParallelJawPtGrasp3D`
+            the sampled grasps
+        """
+        print("[INFO] sample grasps antipodal.")
+
+        # get surface points 获取表面点
+        grasps = []
+        surface_points, _ = graspable.sdf.surface_points(grid_basis=False)
+        np.random.shuffle(surface_points)
+        shuffled_surface_points = surface_points[:min(self.max_num_surface_points_, len(surface_points))]
+        print("shuffled surface points num:", len(shuffled_surface_points))
+
+        for k, x_surf in enumerate(shuffled_surface_points):  # 遍历各个采样点
+            print("current point:", k, "generated grasps:", len(grasps))
+            start_time = time.clock()
+
+            # perturb grasp for num samples 调整当前采样的抓取姿态
+            for i in range(self.num_samples):  # 在当前采样点处生成num_samples个抓取姿态
+                # perturb contact
+                x1 = self.perturb_point(x_surf, graspable.sdf.resolution)  # 给点添加随机扰动
+
+                # compute friction cone faces 计算摩擦锥面
+                c1 = Contact3D(graspable, x1, in_direction=None)  # 3D接触点
+                _, tx1, ty1 = c1.tangents()  # 计算表面法线和切线
+                cone_succeeded, cone1, n1 = c1.friction_cone(self.num_cone_faces, self.friction_coef)  # 计算摩擦锥
+                if not cone_succeeded:
+                    continue
+                cone_time = time.clock()
+
+                # sample grasp axes from friction cone
+                v_samples = self.sample_from_cone(n1, tx1, ty1, num_samples=1)  # 在摩擦锥内均匀采样一个方向向量
+                sample_time = time.clock()
+
+                for v in v_samples:  # 处理各个方向向量, 这里仅生成了一个
+                    if vis:
+                        x1_grid = graspable.sdf.transform_pt_obj_to_grid(x1)  # 接触点 (3*1)
+                        cone1_grid = graspable.sdf.transform_pt_obj_to_grid(cone1, direction=False)  # 摩擦锥(3*8)
+                        plt.clf()
+                        plt.gcf()
+                        # plt.ion()  # 使用交互模式, 不支持多进程!
+                        ax = plt.gca(projection='3d')
+                        for j in range(cone1.shape[1]):
+                            # print(x1_grid[0] - cone1_grid[0])
+                            # print(x1_grid[1] - cone1_grid[1])
+                            # print("cone1_grid[0]", cone1_grid[0], cone1_grid[0].shape)
+                            # print("cone1_grid[1]", cone1_grid[1], cone1_grid[1].shape)
+                            # ax.scatter(cone1_grid[0], cone1_grid[1], cone1_grid[2], s=50,  c='m')
+
+                            ax.scatter(x1_grid[0] - cone1_grid[0], x1_grid[1] - cone1_grid[1],
+                                       x1_grid[2] - cone1_grid[2], s=50, c='m')
+
+                    # random axis flips since we don't have guarantees on surface normal directoins
+                    if random.random() > 0.5:
+                        v = -v
+
+                    # start searching for contacts 利用单个接触点生成平行夹抓的抓取姿态
+                    grasp, c1, c2 = ParallelJawPtGrasp3D.grasp_from_contact_and_axis_on_grid(
+                        graspable, x1, v, self.gripper.max_width,
+                        min_grasp_width_world=self.gripper.min_width, vis=False)
+
+                    if grasp is None or c2 is None:
+                        continue
+
+                    self.show_points(surface_points)
+                    self.show_points(grasp.center, color='r', scale_factor=.005)
+                    self.show_points(c1.point, color='g', scale_factor=.005)
+                    self.show_points(c2.point, color='g', scale_factor=.005)
+                    self.display_grasps3d([grasp], 'b')
+                    mlab.show()
+
+                    if 'random_approach_angle' in kwargs and kwargs['random_approach_angle']:  # NOTE:随机调整approach角度
+                        # print('[INFO] random approach angle')
+                        angle_candidates = np.arange(-90, 91, 30)  # [-90,90]
+                        np.random.shuffle(angle_candidates)
+                        for grasp_angle in angle_candidates:
+                            grasp.approach_angle_ = grasp_angle
+                            # get true contacts (previous is subject to variation)
+                            success, c = grasp.close_fingers(graspable, vis=vis)
+                            if not success:
+                                # print("not success:", grasp_angle)
+                                continue
+                            else:
+                                # print("success grasp angle:", grasp_angle)
+                                pass
+                            break
+                        else:
+                            continue
+                    else:
+                        print("angle:", grasp.approach_angle_)
+                        success, c = grasp.close_fingers(graspable, vis=vis)
+                        if not success:
+                            continue
+                    c1 = c[0]
+                    c2 = c[1]
+
+                    # make sure grasp is wide enough
+                    x2 = c2.point
+                    if np.linalg.norm(x1 - x2) < self.min_contact_dist:
+                        continue
+
+                    v_true = grasp.axis
+                    # compute friction cone for contact 2  # 计算第二接触点摩擦锥
+                    cone_succeeded, cone2, n2 = c2.friction_cone(self.num_cone_faces, self.friction_coef)
+                    if not cone_succeeded:
+                        continue
+
+                    if vis:
+                        plt.figure()
+                        ax = plt.gca(projection='3d')
+                        c1_proxy = c1.plot_friction_cone(color='m')
+                        c2_proxy = c2.plot_friction_cone(color='y')
+                        ax.view_init(elev=5.0, azim=30)
+                        print("show")
+                        plt.show(block=False)
+                        # plt.savefig("filename.png")
+                        # exit("debug")
+                        time.sleep(0.5)
+                        plt.close()  # lol
+
+                    # check friction cone
+                    if PointGraspMetrics3D.force_closure(c1, c2, self.friction_coef):  # NOTE: 力闭合检查
+                        grasps.append(grasp)
+
+        # randomly sample max num grasps from total list
+        random.shuffle(grasps)
+        print("[INFO] sample grasps onece.")
+        return grasps
+
+
+class GpgGraspSampler(GraspSampler):
+    """
+    Sample grasps by GPG.
+    http://journals.sagepub.com/doi/10.1177/0278364917735594
+    """
+
+    def sample_grasps(self, graspable, num_grasps, vis=False, max_num_samples=30, **kwargs):
+        """
+        Returns a list of candidate grasps for graspable object using uniform point pairs from the SDF
+
+        Parameters
+        ----------
+        graspable : :obj:`GraspableObject3D`
+            the object to grasp
+        num_grasps : int
+            the number of grasps to generate
+        vis :
+        max_num_samples :
+
+        Returns
+        -------
+        :obj:`list` of :obj:`ParallelJawPtGrasp3D`
+           list of generated grasps
+        """
+        params = {
+            'num_rball_points': 27,  # FIXME: the same as meshpy..surface_normal()
+            'num_dy': 10,  # number
+            'dtheta': 5,  # unit degree
+            'range_dtheta': 90,
+            'debug_vis': False,
+            'r_ball': self.gripper.hand_height,
+            'approach_step': 0.01,
+            'keepaway_step': 0.01,
+            'max_trail_for_r_ball': 3000,
+            'voxel_grid_ratio': 5,  # voxel_grid/sdf.resolution
+        }
+
+        # get all surface points
+        surface_points, _ = graspable.sdf.surface_points(grid_basis=False)
+        all_points = surface_points
+        # construct pynt point cloud and voxel grid
+        p_cloud = pcl.PointCloud(surface_points.astype(np.float32))
+        voxel = p_cloud.make_voxel_grid_filter()
+        voxel.set_leaf_size(*([graspable.sdf.resolution * params['voxel_grid_ratio']] * 3))
+        surface_points = voxel.filter().to_array()
+
+        num_surface = surface_points.shape[0]
+        sampled_surface_amount = 0
+        grasps = []
+        processed_potential_grasp = []
+        grasp_test = []
+
+        # # grasp_test.append([tmp_grasp_bottom_center, tmp_grasp_normal,
+        # #                    # [-0.00393718 -0.10461882  0.17252018]  [-0.18408447  0.98253861 -0.02703294]
+        # #                    tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
+        # grasp_te=([np.array([-0.00393718, -0.10461882,  0.17252018]), np.array([-0.18408447,  0.98253861, -0.02703294]),
+        #                    #  [-0.00393718 -0.10461882  0.17252018]  [-0.18408447  0.98253861 -0.02703294]
+        #                    np.array([-0.98289787, -0.18387343,  0.01011668]), np.array([0.00496939, 0.02843294, 0.99958335]),
+        #                    np.array([-0.00393718, -0.10461882,  0.17252018])])  # [-0.98289787 -0.18387343  0.01011668]  [0.00496939 0.02843294 0.99958335]
+        #
+        # for i in range(1):
+        #     # g = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(
+        #     #     # tmp_grasp_bottom_center + self.gripper.hand_depth*tmp_grasp_normal,
+        #     #     [-0.00393718, -0.10461882,  0.17252018],  #
+        #     #     [-0.98289787, -0.18387343,  0.01011668],  #
+        #     #     self.gripper.max_width, angle=10*i, normal=[-0.18408447,  0.98253861, -0.02703294], minor_pc=[0.00496939, 0.02843294, 0.99958335]), type='frame')  # 0.085
+        #     # print(g.unrotated_full_axis)
+        #     g = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(
+        #         # tmp_grasp_bottom_center + self.gripper.hand_depth*tmp_grasp_normal,
+        #         [-0.00393718, -0.10461882, 0.17252018],  #
+        #         [-0.98289787, -0.18387343, 0.01011668],  #
+        #         self.gripper.max_width, angle=10 * i))  # 0.085
+        #     print(g.unrotated_full_axis)
+        #     # self.show_points(np.array([-0.00393718, -0.10461882,  0.17252018]), 'r', 0.005)
+        #     # print(10*i)
+        #     # self.show_points(all_points)
+        #     # self.show_all_grasps([grasp_te])
+        #     # self.display_grasps3d([g], 'g')
+        #     # mlab.quiver3d(-0.00393718, -0.10461882, 0.17252018, -0.98289787, -0.18387343, 0.01011668,
+        #     #               scale_factor=.03, line_width=0.05, color=(1, 0, 0), mode='arrow')
+        #     # mlab.show()
+        #     pass
+
+
+        hand_points = self.get_hand_points(np.array([0, 0, 0]), np.array([1, 0, 0]), np.array([0, 1, 0]))
+        # get all grasps
+        while len(grasps) < num_grasps and sampled_surface_amount < max_num_samples:
+            # get candidate contacts
+            ind = np.random.choice(num_surface, size=1, replace=False)
+            selected_surface = surface_points[ind, :].reshape(3)
+
+            # cal major principal curvature
+            # r_ball = max(self.gripper.hand_depth, self.gripper.hand_outer_diameter)
+            r_ball = params['r_ball']  # FIXME: for some relative small obj, we need to use pre-defined radius
+            point_amount = params['num_rball_points']
+            max_trial = params['max_trail_for_r_ball']
+
+            # NOTE: we can not directly sample from point clouds so we use a relatively small radius.
+            """ cal local frame: normal, major_pc, minor_pc """
+            ret = self.cal_surface_property(graspable, selected_surface, r_ball,
+                                            point_amount, max_trial, vis=vis)
+            if ret is None:
+                continue
+            else:
+                old_normal, new_normal, major_pc, minor_pc = ret
+
+            # Judge if the new_normal has the same direction with old_normal, here the correct
+            # direction in modified meshpy is point outward.
+            if np.dot(old_normal, new_normal) < 0:
+                new_normal = -new_normal
+                minor_pc = -minor_pc
+
+            for normal_dir in [1.]:  # NOTE: here we can now know the direction of norm, outward
+                """ Step1: rotat grasp around an axis(minor_pc:blue) """
+                potential_grasp = []
+                for dtheta in np.arange(-params['range_dtheta'], params['range_dtheta'] + 1, params['dtheta']):
+                    dy_potentials = []
+                    x, y, z = minor_pc
+                    rotation = RigidTransform.rotation_from_quaternion(np.array([dtheta / 180 * np.pi, x, y, z]))
+
+                    """ Step2: move step by step according to major_pc """
+                    for dy in np.arange(-params['num_dy'] * self.gripper.finger_width,
+                                        (params['num_dy'] + 1) * self.gripper.finger_width, self.gripper.finger_width):
+                        # compute centers and axes
+                        tmp_major_pc = np.dot(rotation, major_pc * normal_dir)
+                        tmp_grasp_normal = np.dot(rotation, new_normal * normal_dir)
+                        tmp_grasp_bottom_center = selected_surface + tmp_major_pc * dy
+                        # go back a bite after rotation dtheta and translation dy!
+                        tmp_grasp_bottom_center = self.gripper.init_bite * (-tmp_grasp_normal * normal_dir) + tmp_grasp_bottom_center
+
+                        open_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                     tmp_major_pc, minor_pc, graspable,
+                                                                     hand_points, "p_open")
+                        bottom_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                       tmp_major_pc, minor_pc, graspable,
+                                                                       hand_points, "p_bottom")
+
+                        if open_points is True and bottom_points is False:
+                            left_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                         tmp_major_pc, minor_pc, graspable,
+                                                                         hand_points, "p_left")
+                            right_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                          tmp_major_pc, minor_pc, graspable,
+                                                                          hand_points, "p_right")
+
+                            if left_points is False and right_points is False:
+                                dy_potentials.append([tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                      tmp_major_pc, minor_pc])
+                                # potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal,
+                                #                        tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
+
+                    if len(dy_potentials) != 0:
+                        # FIXME: we only take the middle grasp from dy direction.
+                        potential_grasp.append(dy_potentials[int(np.ceil(len(dy_potentials) / 2) - 1)])
+
+                """ Step3: approach step by step """
+                approach_dist = self.gripper.hand_depth  # use gripper depth
+                num_approaches = int(approach_dist / params['approach_step'])
+                for ptg in potential_grasp:
+                    for approach_s in range(num_approaches):
+                        # move approach close to the obj
+                        tmp_grasp_bottom_center = ptg[1] * approach_s * params['approach_step'] + ptg[0]
+                        tmp_grasp_normal, tmp_major_pc, minor_pc = (ptg[1], ptg[2], ptg[3])
+
+                        is_collide = self.check_collide(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                        tmp_major_pc, minor_pc, graspable, hand_points)
+                        if is_collide:
+                            # if collide, go back one step to get a collision free hand position
+                            tmp_grasp_bottom_center += (-tmp_grasp_normal) * params['approach_step']
+
+                            # final check
+                            open_points, _ = self.check_collision_square(tmp_grasp_bottom_center,
+                                                                         tmp_grasp_normal,
+                                                                         tmp_major_pc, minor_pc, graspable,
+                                                                         hand_points, "p_open")
+                            is_collide = self.check_collide(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                            tmp_major_pc, minor_pc, graspable, hand_points)
+                            if open_points and not is_collide:
+                                processed_potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                  tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
+
+                                if vis:
+                                    logger.info('usefull grasp sample point original: %s', selected_surface)
+                                    self.show_points(selected_surface, color='r', scale_factor=.005)
+                                    self.show_grasp_norm_oneside(selected_surface, new_normal * normal_dir,
+                                                                 major_pc * normal_dir,
+                                                                 minor_pc, scale_factor=0.001)
+
+                            # break after go back one step
+                            break
+
+                """ Step4: keep away step by step """
+                keepaway_dist = self.gripper.hand_depth/3*2  # use gripper depth
+                num_keepaways = int(keepaway_dist / params['keepaway_step'])
+                for ptg in potential_grasp:
+                    for keepaway_s in range(num_keepaways):
+                        tmp_grasp_bottom_center = -(ptg[1] * keepaway_s * params['keepaway_step']) + ptg[0]
+                        tmp_grasp_normal, tmp_major_pc, minor_pc = (ptg[1], ptg[2], ptg[3])
+
+                        open_points, _ = self.check_collision_square(tmp_grasp_bottom_center,
+                                                                     tmp_grasp_normal,
+                                                                     tmp_major_pc, minor_pc, graspable,
+                                                                     hand_points, "p_open")
+                        is_collide = self.check_collide(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                        tmp_major_pc, minor_pc, graspable, hand_points)
+                        if open_points and not is_collide:
+                            processed_potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                              tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
+
+                        grasp_test.append([tmp_grasp_bottom_center, tmp_grasp_normal,
+                                          tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
+
+                        # if vis:
+                        #     logger.info("processed_potential_grasp %d", len(processed_potential_grasp))
+                        #     # self.show_all_grasps(processed_potential_grasp)
+                        #     self.show_all_grasps(grasp_test)
+                        #     self.show_points(all_points)
+                        #     self.display_grasps3d(grasps, 'g')
+                        #     mlab.show()
+
+            sampled_surface_amount += 1
+            logger.info("current amount of sampled surface %d", sampled_surface_amount)
+
+        for grasp in processed_potential_grasp:
+            grasp_bottom_center = np.array(grasp[0])
+            grasp_normal = np.array(grasp[1])
+            major_pc = np.array(grasp[2])
+            minor_pc = np.array(grasp[3])
+
+            grasp_top_center = grasp_bottom_center + self.gripper.hand_depth * grasp_normal
+            grasp3d = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(
+                grasp_top_center, major_pc, self.gripper.max_width, normal=grasp_normal,
+                minor_pc=minor_pc), type='frame')
+            grasps.append(grasp3d)
+
+        if vis:
+            logger.info("processed_potential_grasp %d", len(processed_potential_grasp))
+            # self.show_all_grasps(processed_potential_grasp)
+            self.show_all_grasps(grasp_test)
+            self.show_points(all_points)
+            self.display_grasps3d(grasps, 'g')
+            mlab.show()
+
+        # return processed_potential_grasp
+        return grasps
 
 
 class UniformGraspSampler(GraspSampler):
@@ -627,391 +1094,6 @@ class GaussianGraspSampler(GraspSampler):
             plt.show()
 
         return grasps
-
-
-class AntipodalGraspSampler(GraspSampler):
-    """ Samples antipodal pairs using rejection sampling.
-    The proposal sampling ditribution is to choose a random point on
-    the object surface, then sample random directions within the friction cone,
-    then form a grasp axis along the direction,
-    close the fingers, and keep the grasp if the other contact point is also in the friction cone.
-    """
-
-    def sample_from_cone(self, n, tx, ty, num_samples=1):
-        """ Samples directoins from within the friction cone using uniform sampling.
-
-        Parameters
-        ----------
-        n : 3x1 normalized :obj:`numpy.ndarray`
-            surface normal
-        tx : 3x1 normalized :obj:`numpy.ndarray`
-            tangent x vector
-        ty : 3x1 normalized :obj:`numpy.ndarray`
-            tangent y vector
-        num_samples : int
-            number of directions to sample
-
-        Returns
-        -------
-        v_samples : :obj:`list` of 3x1 :obj:`numpy.ndarray`
-            sampled directions in the friction cone
-       """
-        v_samples = []
-        for i in range(num_samples):
-            theta = 2 * np.pi * np.random.rand()
-            r = self.friction_coef * np.random.rand()
-            v = n + r * np.cos(theta) * tx + r * np.sin(theta) * ty
-            v = -v / np.linalg.norm(v)
-            v_samples.append(v)
-        return v_samples
-
-    def within_cone(self, cone, n, v):
-        """
-        Checks whether or not a direction is in the friction cone.
-        This is equivalent to whether a grasp will slip using a point contact model.
-
-        Parameters
-        ----------
-        cone : 3xN :obj:`numpy.ndarray`
-            supporting vectors of the friction cone
-        n : 3x1 :obj:`numpy.ndarray`
-            outward pointing surface normal vector at c1
-        v : 3x1 :obj:`numpy.ndarray`
-            direction vector
-
-        Returns
-        -------
-        in_cone : bool
-            True if alpha is within the cone
-        alpha : float
-            the angle between the normal and v
-        """
-        if (v.dot(cone) < 0).any():  # v should point in same direction as cone
-            v = -v  # don't worry about sign, we don't know it anyway...
-        f = -n / np.linalg.norm(n)
-        alpha = np.arccos(f.T.dot(v) / np.linalg.norm(v))
-        return alpha <= np.arctan(self.friction_coef), alpha
-
-    def perturb_point(self, x, scale):
-        """ Uniform random perturbations to a point 均匀随机扰动"""
-        x_samp = x + (scale / 2.0) * (np.random.rand(3) - 0.5)
-        return x_samp
-
-    def sample_grasps(self, graspable, num_grasps, vis=False, **kwargs):
-        """Returns a list of candidate grasps for graspable object.
-
-        Parameters
-        ----------
-        graspable : :obj:`GraspableObject3D`
-            the object to grasp
-        num_grasps : int
-            number of grasps to sample
-        vis : bool
-            whether or not to visualize progress, for debugging
-
-        Returns
-        -------
-        :obj:`list` of :obj:`ParallelJawPtGrasp3D`
-            the sampled grasps
-        """
-        print("[INFO] sample grasps antipodal.")
-
-        # get surface points 获取表面点
-        grasps = []
-        surface_points, _ = graspable.sdf.surface_points(grid_basis=False)
-        np.random.shuffle(surface_points)
-        shuffled_surface_points = surface_points[:min(self.max_num_surface_points_, len(surface_points))]
-        logger.info('Num surface: %d' % (len(surface_points)))
-
-        print("shuffled surface points num:", len(shuffled_surface_points))
-        for k, x_surf in enumerate(shuffled_surface_points):  # 遍历各个采样点
-            print("k:", k, "len(grasps):", len(grasps))
-            start_time = time.clock()
-
-            # perturb grasp for num samples 调整当前采样的抓取姿态
-            for i in range(self.num_samples):
-                # perturb contact (TODO: sample in tangent plane to surface) 在与表面相切的平面上采样
-                x1 = self.perturb_point(x_surf, graspable.sdf.resolution)  # 给点添加随机扰动
-
-                # compute friction cone faces 计算摩擦锥面
-                c1 = Contact3D(graspable, x1, in_direction=None)  # 3D接触点
-                _, tx1, ty1 = c1.tangents()  # 计算表面法线和切线
-                cone_succeeded, cone1, n1 = c1.friction_cone(self.num_cone_faces, self.friction_coef)  # 计算摩擦锥
-                if not cone_succeeded:
-                    continue
-                cone_time = time.clock()
-
-                # sample grasp axes from friction cone
-                v_samples = self.sample_from_cone(n1, tx1, ty1, num_samples=1)  # 在摩擦锥内均匀采样方向向量
-                sample_time = time.clock()
-
-                for v in v_samples:
-                    if vis:
-                        x1_grid = graspable.sdf.transform_pt_obj_to_grid(x1)  # 接触点 (3*1)
-                        cone1_grid = graspable.sdf.transform_pt_obj_to_grid(cone1, direction=False)  # 摩擦锥(3*8)
-                        plt.clf()
-                        plt.gcf()
-                        # plt.ion()  # 使用交互模式, 不支持多进程!
-                        ax = plt.gca(projection='3d')
-                        for j in range(cone1.shape[1]):
-                            print(x1_grid[0] - cone1_grid[0])
-                            print(x1_grid[1] - cone1_grid[1])
-                            print("cone1_grid[0]", cone1_grid[0], cone1_grid[0].shape)
-                            print("cone1_grid[1]", cone1_grid[1], cone1_grid[1].shape)
-                            # ax.scatter(cone1_grid[0], cone1_grid[1], cone1_grid[2], s=50,  c='m')
-
-                            ax.scatter(x1_grid[0] - cone1_grid[0], x1_grid[1] - cone1_grid[1],
-                                       x1_grid[2] - cone1_grid[2], s=50, c='m')
-
-
-                    # random axis flips since we don't have guarantees on surface normal directoins
-                    if random.random() > 0.5:
-                        v = -v
-
-                    # start searching for contacts 利用单个接触点生成平行夹抓的抓取姿态
-                    grasp, c1, c2 = ParallelJawPtGrasp3D.grasp_from_contact_and_axis_on_grid(
-                        graspable, x1, v, self.gripper.max_width,
-                        min_grasp_width_world=self.gripper.min_width, vis=False)
-                    
-                    if grasp is None or c2 is None:
-                        continue
-
-                    if 'random_approach_angle' in kwargs and kwargs['random_approach_angle']:  #NOTE:随机调整approach角度
-                        # print('[INFO] random approach angle')
-                        angle_candidates = np.arange(-90, 91, 30)  # [-90,90]
-                        np.random.shuffle(angle_candidates)
-                        for grasp_angle in angle_candidates:
-                            grasp.approach_angle_ = grasp_angle
-                            # get true contacts (previous is subject to variation)
-                            success, c = grasp.close_fingers(graspable, vis=vis)
-                            if not success:
-                                # print("not success:", grasp_angle)
-                                continue
-                            else:
-                                # print("success grasp angle:", grasp_angle)
-                                pass
-                            break
-                        else:
-                            continue
-                    else:
-                        print("angle:", grasp.approach_angle_)
-                        success, c = grasp.close_fingers(graspable, vis=vis)
-                        if not success:
-                            continue
-                    c1 = c[0]
-                    c2 = c[1]
-
-                    # make sure grasp is wide enough
-                    x2 = c2.point
-                    if np.linalg.norm(x1 - x2) < self.min_contact_dist:
-                        continue
-
-                    v_true = grasp.axis
-                    # compute friction cone for contact 2  # 计算第二接触点摩擦锥
-                    cone_succeeded, cone2, n2 = c2.friction_cone(self.num_cone_faces, self.friction_coef)
-                    if not cone_succeeded:
-                        continue
-
-                    if vis:
-                        plt.figure()
-                        ax = plt.gca(projection='3d')
-                        c1_proxy = c1.plot_friction_cone(color='m')
-                        c2_proxy = c2.plot_friction_cone(color='y')
-                        ax.view_init(elev=5.0, azim=30)
-                        print("show")
-                        plt.show(block=False)
-                        # plt.savefig("filename.png")
-                        # exit("debug")
-                        time.sleep(0.5)
-                        plt.close()  # lol
-
-                    # check friction cone
-                    if PointGraspMetrics3D.force_closure(c1, c2, self.friction_coef):  # 力闭合检查
-                        grasps.append(grasp)
-
-        # randomly sample max num grasps from total list
-        random.shuffle(grasps)
-        print("[debug] sample grasps onece.")
-        return grasps
-
-
-class GpgGraspSampler(GraspSampler):
-    """
-    Sample grasps by GPG.
-    http://journals.sagepub.com/doi/10.1177/0278364917735594
-    """
-
-    def sample_grasps(self, graspable, num_grasps, vis=False, max_num_samples=30, **kwargs):
-        """
-        Returns a list of candidate grasps for graspable object using uniform point pairs from the SDF
-
-        Parameters
-        ----------
-        graspable : :obj:`GraspableObject3D`
-            the object to grasp
-        num_grasps : int
-            the number of grasps to generate
-        vis :
-        max_num_samples :
-
-        Returns
-        -------
-        :obj:`list` of :obj:`ParallelJawPtGrasp3D`
-           list of generated grasps
-        """
-        params = {
-            'num_rball_points': 27,  # FIXME: the same as meshpy..surface_normal()
-            'num_dy': 10,  # number
-            'dtheta': 10,  # unit degree
-            'range_dtheta': 90,
-            'debug_vis': False,
-            'r_ball': self.gripper.hand_height,
-            'approach_step': 0.005,
-            'max_trail_for_r_ball': 3000,
-            'voxel_grid_ratio': 5,  # voxel_grid/sdf.resolution
-        }
-
-        # get all surface points
-        surface_points, _ = graspable.sdf.surface_points(grid_basis=False)
-        all_points = surface_points
-        # construct pynt point cloud and voxel grid
-        p_cloud = pcl.PointCloud(surface_points.astype(np.float32))
-        voxel = p_cloud.make_voxel_grid_filter()
-        voxel.set_leaf_size(*([graspable.sdf.resolution * params['voxel_grid_ratio']] * 3))
-        surface_points = voxel.filter().to_array()
-
-        num_surface = surface_points.shape[0]
-        sampled_surface_amount = 0
-        grasps = []
-        processed_potential_grasp = []
-
-        hand_points = self.get_hand_points(np.array([0, 0, 0]), np.array([1, 0, 0]), np.array([0, 1, 0]))
-        # get all grasps
-        while len(grasps) < num_grasps and sampled_surface_amount < max_num_samples:
-            # get candidate contacts
-            ind = np.random.choice(num_surface, size=1, replace=False)
-            selected_surface = surface_points[ind, :].reshape(3)
-
-            # cal major principal curvature
-            # r_ball = max(self.gripper.hand_depth, self.gripper.hand_outer_diameter)
-            r_ball = params['r_ball']  # FIXME: for some relative small obj, we need to use pre-defined radius
-            point_amount = params['num_rball_points']
-            max_trial = params['max_trail_for_r_ball']
-            # TODO: we can not directly sample from point clouds so we use a relatively small radius.
-            ret = self.cal_surface_property(graspable, selected_surface, r_ball,
-                                            point_amount, max_trial, vis=params['debug_vis'])
-            if ret is None:
-                continue
-            else:
-                old_normal, new_normal, major_pc, minor_pc = ret
-
-            # Judge if the new_normal has the same direction with old_normal, here the correct
-            # direction in modified meshpy is point outward.
-            if np.dot(old_normal, new_normal) < 0:
-                new_normal = -new_normal
-                minor_pc = -minor_pc
-
-            for normal_dir in [1.]:  # FIXME: here we can now know the direction of norm, outward
-                if params['debug_vis']:
-                    # example of show grasp frame
-                    self.show_grasp_norm_oneside(selected_surface, new_normal * normal_dir, major_pc * normal_dir,
-                                                 minor_pc, scale_factor=0.001)
-                    self.show_points(selected_surface, color='g', scale_factor=.002)
-                    # self.show_points(all_points)
-
-                # some magic number referred from origin paper
-                potential_grasp = []
-                for dtheta in np.arange(-params['range_dtheta'],
-                                        params['range_dtheta'] + 1,
-                                        params['dtheta']):
-                    dy_potentials = []
-                    x, y, z = minor_pc
-                    rotation = RigidTransform.rotation_from_quaternion(np.array([dtheta / 180 * np.pi, x, y, z]))
-                    for dy in np.arange(-params['num_dy'] * self.gripper.finger_width,
-                                        (params['num_dy'] + 1) * self.gripper.finger_width,
-                                        self.gripper.finger_width):
-                        # compute centers and axes
-                        tmp_major_pc = np.dot(rotation, major_pc * normal_dir)
-                        tmp_grasp_normal = np.dot(rotation, new_normal * normal_dir)
-                        tmp_grasp_bottom_center = selected_surface + tmp_major_pc * dy
-                        # go back a bite after rotation dtheta and translation dy!
-                        tmp_grasp_bottom_center = self.gripper.init_bite * (
-                                -tmp_grasp_normal * normal_dir) + tmp_grasp_bottom_center
-
-                        open_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                                     tmp_major_pc, minor_pc, graspable,
-                                                                     hand_points, "p_open")
-                        bottom_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                                       tmp_major_pc, minor_pc, graspable,
-                                                                       hand_points,
-                                                                       "p_bottom")
-                        if open_points is True and bottom_points is False:
-
-                            left_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                                         tmp_major_pc, minor_pc, graspable,
-                                                                         hand_points,
-                                                                         "p_left")
-                            right_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                                          tmp_major_pc, minor_pc, graspable,
-                                                                          hand_points,
-                                                                          "p_right")
-
-                            if left_points is False and right_points is False:
-                                dy_potentials.append([tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                      tmp_major_pc, minor_pc])
-                    if len(dy_potentials) != 0:
-                        # we only take the middle grasp from dy direction.
-                        potential_grasp.append(dy_potentials[int(np.ceil(len(dy_potentials) / 2) - 1)])
-                approach_dist = self.gripper.hand_depth  # use gripper depth
-                num_approaches = int(approach_dist / params['approach_step'])
-                for ptg in potential_grasp:
-                    for approach_s in range(num_approaches):
-                        tmp_grasp_bottom_center = ptg[1] * approach_s * params['approach_step'] + ptg[0]
-
-                        tmp_grasp_normal = ptg[1]
-                        tmp_major_pc = ptg[2]
-                        minor_pc = ptg[3]
-                        is_collide = self.check_collide(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                        tmp_major_pc, minor_pc, graspable, hand_points)
-                        if is_collide:
-                            # if collide, go back one step to get a collision free hand position
-                            tmp_grasp_bottom_center += (-tmp_grasp_normal) * params['approach_step']
-
-                            # final check
-                            open_points, _ = self.check_collision_square(tmp_grasp_bottom_center,
-                                                                         tmp_grasp_normal,
-                                                                         tmp_major_pc, minor_pc, graspable,
-                                                                         hand_points, "p_open")
-                            is_collide = self.check_collide(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                            tmp_major_pc, minor_pc, graspable, hand_points)
-                            if open_points and not is_collide:
-                                processed_potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                                  tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
-
-                                self.show_points(selected_surface, color='r', scale_factor=.005)
-                                if params['debug_vis']:
-                                    logger.info('usefull grasp sample point original: %s', selected_surface)
-                                    self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                                tmp_major_pc, minor_pc, graspable, hand_points,
-                                                                "p_open", vis=True)
-                            break
-                logger.info("processed_potential_grasp %d", len(processed_potential_grasp))
-
-            sampled_surface_amount += 1
-            logger.info("current amount of sampled surface %d", sampled_surface_amount)
-            if not sampled_surface_amount % 20:  # params['debug_vis']:
-                # self.show_all_grasps(all_points, processed_potential_grasp)
-                # self.show_points(all_points)
-                # mlab.show()
-                return processed_potential_grasp
-            #
-            # g = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(
-            #     tmp_grasp_center,
-            #     tmp_major_pc,
-            #     self.gripper.max_width))
-            # grasps.append(g)
-
-        return processed_potential_grasp
 
 
 class PointGraspSampler(GraspSampler):
@@ -1475,13 +1557,6 @@ class GpgGraspSamplerPcl(GraspSampler):
 
             # for ros, we needed to judge if the robot is at HOME
 
-            if rospy.get_param("/robot_at_home") == "false":
-                robot_at_home = False
-            else:
-                robot_at_home = True
-            if not robot_at_home:
-                rospy.loginfo("robot is moving! wait untill it go home. Return empty gpg!")
-                return []
             scipy.random.seed()  # important! without this, the worker will get a pseudo-random sequences.
             ind = np.random.choice(points_for_sample.shape[0], size=1, replace=False)
             selected_surface = points_for_sample[ind, :].reshape(3, )

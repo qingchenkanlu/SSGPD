@@ -123,10 +123,17 @@ class ParallelJawPtGrasp3D(PointGrasp):
     """ Parallel Jaw point grasps in 3D space.
     """
 
-    def __init__(self, configuration, frame='object', grasp_id=None):
+    def __init__(self, configuration, type='axis', frame='object', grasp_id=None):
+        """
+        :param configuration:
+        :param type: 'axis' use old formate: center+aixs ; 'frame' use new formate: center+frame
+               frame: normal+major_pc+minor_pc Note: add by MrRen-sdhm
+        :param frame:
+        :param grasp_id:
+        """
         # get parameters from configuration array
-        grasp_center, grasp_axis, grasp_width, grasp_angle, jaw_width, min_grasp_width = \
-            ParallelJawPtGrasp3D.params_from_configuration(configuration)
+        grasp_center, grasp_axis, grasp_width, grasp_angle, jaw_width, min_grasp_width, normal, minor_pc = \
+                                             ParallelJawPtGrasp3D.params_from_configuration(configuration, type)
 
         self.center_ = grasp_center
         self.axis_ = grasp_axis / np.linalg.norm(grasp_axis)
@@ -136,6 +143,8 @@ class ParallelJawPtGrasp3D(PointGrasp):
         self.approach_angle_ = grasp_angle
         self.frame_ = frame
         self.grasp_id_ = grasp_id
+        self.normal_ = normal
+        self.minor_pc_ = minor_pc
 
     @property
     def center(self):
@@ -172,12 +181,30 @@ class ParallelJawPtGrasp3D(PointGrasp):
         return self.approach_angle_
 
     @property
+    def normal(self):
+        """ float : minor principle curvature of the grasp frame """
+        return self.normal_
+
+    @normal.setter
+    def normal(self, value):
+        self._normal_ = value
+
+    @property
+    def minor_pc(self):
+        """ float : minor principle curvature of the grasp frame """
+        return self.minor_pc_
+
+    @minor_pc.setter
+    def minor_pc(self, value):
+        self._minor_pc_ = value
+
+    @property
     def configuration(self):
         """ :obj:`numpy.ndarray` : vector specifying the parameters of the grasp as follows
-        (grasp_center, grasp_axis, grasp_angle, grasp_width, jaw_width) """
+        (grasp_center, grasp_axis, grasp_angle, grasp_width, jaw_width, normal, minor_pc) """
         return ParallelJawPtGrasp3D.configuration_from_params(self.center_, self.axis_, self.max_grasp_width_,
                                                               self.approach_angle_, self.jaw_width_,
-                                                              self.min_grasp_width_)
+                                                              self.min_grasp_width_, self.normal_, self.minor_pc_)
 
     @property
     def frame(self):
@@ -230,22 +257,24 @@ class ParallelJawPtGrasp3D(PointGrasp):
         axis_dist = (2.0 / np.pi) * np.arccos(np.abs(g1.axis.dot(g2.axis)))
         return center_dist + alpha * axis_dist
 
-    @staticmethod
-    def configuration_from_params(center, axis, width, angle=0, jaw_width=0, min_width=0):
+    def configuration_from_params(center, axis, width, angle=0, jaw_width=0, min_width=0, normal=[], minor_pc=[]):
         """ Converts grasp parameters to a configuration vector. """
         if np.abs(np.linalg.norm(axis) - 1.0) > 1e-5:
             raise ValueError('Illegal grasp axis. Must be norm one')
-        configuration = np.zeros(10)
+        configuration = np.zeros(16)
         configuration[0:3] = center
         configuration[3:6] = axis
         configuration[6] = width
         configuration[7] = angle
         configuration[8] = jaw_width
         configuration[9] = min_width
+        if len(normal) == 3:
+            configuration[9:12] = normal
+        if len(minor_pc) == 3:
+            configuration[12:15] = minor_pc
         return configuration
 
-    @staticmethod
-    def params_from_configuration(configuration):
+    def params_from_configuration(configuration, type='axis'):
         """ Converts configuration vector into grasp parameters.
         
         Returns
@@ -253,7 +282,7 @@ class ParallelJawPtGrasp3D(PointGrasp):
         grasp_center : :obj:`numpy.ndarray`
             center of grasp in 3D space
         grasp_axis : :obj:`numpy.ndarray`
-            normalized axis of grasp in 3D space
+            normalized axis of grasp in 3D space, major principle curvature
         max_width : float
             maximum opening width of jaws
         angle : float
@@ -262,17 +291,26 @@ class ParallelJawPtGrasp3D(PointGrasp):
             width of jaws
         min_width : float
             minimum closing width of jaws
+        normal : float Note: add by MrRen-sdhm
+            approach direction of the grasp frame
+        minor_pc : float Note: add by MrRen-sdhm
+            minor principle curvature of the grasp frame
         """
-        if not isinstance(configuration, np.ndarray) or (configuration.shape[0] != 9 and configuration.shape[0] != 10):
+        if not isinstance(configuration, np.ndarray) or (configuration.shape[0] != 9 and configuration.shape[0] != 16):
             raise ValueError('Configuration must be numpy ndarray of size 9 or 10')
-        if configuration.shape[0] == 9:
+        if configuration.shape[0] >= 9:
             min_grasp_width = 0
         else:
             min_grasp_width = configuration[9]
         if np.abs(np.linalg.norm(configuration[3:6]) - 1.0) > 1e-5:
             raise ValueError('Illegal grasp axis. Must be norm one')
-        return configuration[0:3], configuration[3:6], configuration[6], configuration[7], configuration[
-            8], min_grasp_width
+
+        if type=='axis':
+            return configuration[0:3], configuration[3:6], configuration[6], configuration[7], configuration[
+                8], min_grasp_width, [], []
+        elif type=='frame':
+            return configuration[0:3], configuration[3:6], configuration[6], configuration[7], configuration[
+                8], min_grasp_width, configuration[9:12], configuration[12:15]
 
     @staticmethod
     def center_from_endpoints(g1, g2):
@@ -329,11 +367,15 @@ class ParallelJawPtGrasp3D(PointGrasp):
             rotation matrix of grasp
         """
         grasp_axis_y = self.axis
-        grasp_axis_x = np.array([grasp_axis_y[1], -grasp_axis_y[0], 0])
-        if np.linalg.norm(grasp_axis_x) == 0:
-            grasp_axis_x = np.array([1, 0, 0])
-        grasp_axis_x = grasp_axis_x / norm(grasp_axis_x)
-        grasp_axis_z = np.cross(grasp_axis_x, grasp_axis_y)
+        if len(self.normal_) > 0 and len(self.minor_pc_) > 0:  # Note: add by MrRen-sdhm
+            grasp_axis_x = self.normal_
+            grasp_axis_z = self.minor_pc_
+        else:
+            grasp_axis_x = np.array([grasp_axis_y[1], -grasp_axis_y[0], 0])
+            if np.linalg.norm(grasp_axis_x) == 0:
+                grasp_axis_x = np.array([1, 0, 0])
+            grasp_axis_x = grasp_axis_x / norm(grasp_axis_x)
+            grasp_axis_z = np.cross(grasp_axis_x, grasp_axis_y)
 
         R = np.c_[grasp_axis_x, np.c_[grasp_axis_y, grasp_axis_z]]
         return R

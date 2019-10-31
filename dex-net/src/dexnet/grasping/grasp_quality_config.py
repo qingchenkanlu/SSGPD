@@ -25,19 +25,7 @@ Author: Jeff Mahler
 """
 from abc import ABCMeta, abstractmethod
 
-import copy
-import itertools as it
-import logging
-import matplotlib.pyplot as plt
 
-import numpy as np
-import os
-import sys
-import time
-
-import IPython
-
-# class GraspQualityConfig(object, metaclass=ABCMeta):
 class GraspQualityConfig(object):
     """
     Base wrapper class for parameters used in grasp quality computation.
@@ -49,6 +37,7 @@ class GraspQualityConfig(object):
         dictionary mapping parameter names to parameter values
     """
     __metaclass__ = ABCMeta
+
     def __init__(self, config):
         # check valid config
         self.check_valid(config)
@@ -80,6 +69,7 @@ class GraspQualityConfig(object):
     def check_valid(self, config):
         """ Raise an exception if the config is missing required keys """
         pass
+
 
 class QuasiStaticGraspQualityConfig(GraspQualityConfig):
     """
@@ -130,6 +120,7 @@ class QuasiStaticGraspQualityConfig(GraspQualityConfig):
             if key not in list(config.keys()):
                 raise ValueError('Invalid configuration. Key %s must be specified' %(key))
 
+
 class RobustQuasiStaticGraspQualityConfig(GraspQualityConfig):
     """
     Parameters for quasi-static grasp quality computation.
@@ -176,6 +167,7 @@ class RobustQuasiStaticGraspQualityConfig(GraspQualityConfig):
         for key in required_keys:
             if key not in list(config.keys()):
                 raise ValueError('Invalid configuration. Key %s must be specified' %(key))        
+
 
 class GraspQualityConfigFactory:
     """ Helper class to automatically create grasp quality configurations of different types. """

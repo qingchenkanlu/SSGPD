@@ -14,11 +14,11 @@ grasp_sampler: antipodal
 target_num_grasps: 25
 num_grasp_rots: 32
 
-sampling_friction_coef: 2.0
+sampling_friction_coef: 2.0  # friction_coef when sampling
 num_cone_faces: 8
 max_grasp_sampling_iters: 5
 grasp_samples_per_surface_point: 2
-max_num_surface_points: 200
+max_num_surface_points: 5  # sampling points num on obj surface
 min_contact_dist: 0.0025
 dir_prior: 1.0
 

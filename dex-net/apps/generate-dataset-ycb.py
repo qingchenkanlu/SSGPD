@@ -4,20 +4,21 @@
 # E-mail     : liang@informatik.uni-hamburg.de
 # Description: 
 # Date       : 20/05/2018 2:45 PM
-# File Name  : generate-dataset-canny.py
+# File Name  : generate-dataset-ycb.py
+
 import numpy as np
 import sys
 import pickle
 from dexnet.grasping.quality import PointGraspMetrics3D
 from dexnet.grasping import GaussianGraspSampler, AntipodalGraspSampler, UniformGraspSampler, GpgGraspSampler
 from dexnet.grasping import RobotGripper, GraspableObject3D, GraspQualityConfigFactory, PointGraspSampler
-import dexnet
 from autolab_core import YamlConfig
 from meshpy.obj_file import ObjFile
 from meshpy.sdf_file import SdfFile
 import os
 import multiprocessing
 import matplotlib.pyplot as plt
+
 plt.switch_backend('agg')  # for the convenient of run on remote computer
 
 
@@ -34,11 +35,12 @@ def do_job(i):
     object_name = file_list_all[i][len(home_dir) + 48:-12]
     good_grasp = multiprocessing.Manager().list()  # 全局列表, 存储 good grasp
     p_set = [multiprocessing.Process(target=worker, args=(i, 100, 20, good_grasp)) for _ in  # 采样点数, 每个摩擦系数对应的抓取姿态个数
-             range(25)]  # grasp_amount per friction: 20*40
+             range(1)]  # grasp_amount per friction: 20*40
     [p.start() for p in p_set]
     [p.join() for p in p_set]
-    good_grasp = list(good_grasp)
 
+    # all jobs done, prepare for data save
+    good_grasp = list(good_grasp)
     good_grasp_file_name = "./generated_grasps/{}_{}_{}".format(filename_prefix, str(object_name), str(len(good_grasp)))
     if not os.path.exists('./generated_grasps/'):
         os.mkdir('./generated_grasps/')
@@ -57,14 +59,20 @@ def do_job(i):
     print("\nfinished job ", object_name)
 
 
-def worker(i, sample_nums, grasp_amount, good_grasp):
+def worker(i, target_num_grasps, grasp_num_per_fc, good_grasp):
+    """
+    :param target_num_grasps: 抓取姿态生成器每次的目标生成抓取姿态数
+    :param grasp_num_per_fc: 每个摩擦系数需要生成的抓取姿态数
+    """
     object_name = file_list_all[i][len(home_dir) + 48:-12]
-    print('a worker of task {} start'.format(object_name))
+    print('[INFO] a worker of task {} start, job num:{}'.format(object_name, i))
 
     yaml_config = YamlConfig(home_dir + "/Projects/GPD_PointNet/dex-net/test/config.yaml")
+    print("yaml_config:", yaml_config.config)
+
     gripper_name = 'robotiq_85'
     gripper = RobotGripper.load(gripper_name, home_dir + "/Projects/GPD_PointNet/dex-net/data/grippers")
-    grasp_sample_method = "antipodal"
+    grasp_sample_method = "gpg"
     if grasp_sample_method == "uniform":
         ags = UniformGraspSampler(gripper, yaml_config)
     elif grasp_sample_method == "gaussian":
@@ -77,7 +85,9 @@ def worker(i, sample_nums, grasp_amount, good_grasp):
         ags = PointGraspSampler(gripper, yaml_config)
     else:
         raise NameError("Can't support this sampler")
-    print("Log: do job", i)
+
+    print("grasp_sample_method:", grasp_sample_method)
+
     if os.path.exists(str(file_list_all[i]) + "/nontextured.obj"):
         of = ObjFile(str(file_list_all[i]) + "/nontextured.obj")
         sf = SdfFile(str(file_list_all[i]) + "/nontextured.sdf")
@@ -87,19 +97,22 @@ def worker(i, sample_nums, grasp_amount, good_grasp):
     mesh = of.read()
     sdf = sf.read()
     obj = GraspableObject3D(sdf, mesh)
-    print("Log: opened object", i + 1, object_name)
+    print("[INFO] opened object", i + 1, object_name)
 
     force_closure_quality_config = {}
     canny_quality_config = {}
     fc_list_sub1 = np.arange(2.0, 0.75, -0.4)
     fc_list_sub2 = np.arange(0.5, 0.36, -0.05)
-    fc_list = np.concatenate([fc_list_sub1, fc_list_sub2])  # 摩擦系数列表  fc_list [2.  1.6  1.2  0.8  0.5  0.45 0.4 ]
-    print("fc_list", fc_list, "fc_list[-1]", fc_list[-1])
+    fc_list = np.concatenate([fc_list_sub1, fc_list_sub2])  # 摩擦系数列表  fc_list [2.  1.6  1.2  0.8 | 0.5  0.45 0.4 ]
+    print("fc_list", fc_list)
+    
     for value_fc in fc_list:
+        # use multi friction_coef
         value_fc = round(value_fc, 2)
         yaml_config['metrics']['force_closure']['friction_coef'] = value_fc
         yaml_config['metrics']['robust_ferrari_canny']['friction_coef'] = value_fc
 
+        # create grasp quality config according to multi friction_coef
         force_closure_quality_config[value_fc] = GraspQualityConfigFactory.create_config(
             yaml_config['metrics']['force_closure'])
         canny_quality_config[value_fc] = GraspQualityConfigFactory.create_config(
@@ -107,45 +120,42 @@ def worker(i, sample_nums, grasp_amount, good_grasp):
 
     good_count_perfect = np.zeros(len(fc_list))
     count = 0
-    minimum_grasp_per_fc = grasp_amount
 
     # 各个摩擦系数生成一些抓取
-    while np.sum(good_count_perfect < minimum_grasp_per_fc) != 0 and good_count_perfect[-1] < minimum_grasp_per_fc:
-        print("[INFO]:good | mini", good_count_perfect, minimum_grasp_per_fc)
-        print("[INFO]:good < mini", good_count_perfect < minimum_grasp_per_fc,
-              np.sum(good_count_perfect < minimum_grasp_per_fc))
-        grasps = ags.generate_grasps(obj, target_num_grasps=sample_nums, grasp_gen_mult=10,  # 生成抓取姿态
-                                     vis=False, random_approach_angle=True)  # 随机调整抓取方向
+    while np.sum(good_count_perfect < grasp_num_per_fc) != 0 and good_count_perfect[-1] < grasp_num_per_fc:
+        print("[INFO]:good | mini", good_count_perfect, grasp_num_per_fc)
+        print("[INFO]:good < mini", good_count_perfect < grasp_num_per_fc,
+              np.sum(good_count_perfect < grasp_num_per_fc))
+        grasps = ags.generate_grasps(obj, target_num_grasps=target_num_grasps, grasp_gen_mult=10,  # 生成抓取姿态
+                                     max_iter=3, vis=True, random_approach_angle=True)  # 随机调整抓取方向
         print("\033[0;32m%s\033[0m" % "[INFO] Worker{} generate {} grasps.".format(i, len(grasps)))
         count += len(grasps)
-        for j in grasps:  # 遍历生成的抓取姿态, 判断是否为力闭合, 及其对应的摩擦系数
+        for grasp in grasps:  # 遍历生成的抓取姿态, 判断是否为力闭合, 及其对应的摩擦系数
             tmp, is_force_closure = False, False
             for ind_, value_fc in enumerate(fc_list):  # 为每个摩擦系数分配抓取姿态
                 value_fc = round(value_fc, 2)
                 tmp = is_force_closure
-                is_force_closure = PointGraspMetrics3D.grasp_quality(j, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
+                is_force_closure = PointGraspMetrics3D.grasp_quality(grasp, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
                                                                      force_closure_quality_config[value_fc], vis=False)
-                print("[INFO] is_force_closure:", is_force_closure, "value_fc:", value_fc, "tmp:", tmp)
+                print("[INFO] is_force_closure:", bool(is_force_closure), "value_fc:", value_fc, "tmp:", tmp)
                 if tmp and not is_force_closure:  # 前一个摩擦系数下为力闭合, 当前摩擦系数下非力闭合, 即找到此抓取对应的最小摩擦系数
-                    print("[debug] tmp and not is_force_closure")
-                    if good_count_perfect[ind_ - 1] < minimum_grasp_per_fc:
-                        canny_quality = PointGraspMetrics3D.grasp_quality(j, obj,
-                                                                          canny_quality_config[
-                                                                              round(fc_list[ind_ - 1], 2)],
-                                                                          vis=False)
-                        good_grasp.append((j, round(fc_list[ind_ - 1], 2), canny_quality))  # 保存前一个抓取
+                    print("[debug] tmp and not is_force_closure,value_fc:", value_fc, "ind_:", ind_)
+                    if good_count_perfect[ind_ - 1] < grasp_num_per_fc:
+                        canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[
+                                                                                round(fc_list[ind_ - 1], 2)], vis=False)
+                        good_grasp.append((grasp, round(fc_list[ind_ - 1], 2), canny_quality))  # 保存前一个抓取
                         good_count_perfect[ind_ - 1] += 1
+                        print("[debug] good_count_perfect[{}] += 1".format(ind_ - 1))
                     break
-
                 elif is_force_closure and value_fc == fc_list[-1]:  # 力闭合并且摩擦系数最小
                     print("[debug] is_force_closure and value_fc == fc_list[-1]")
-                    if good_count_perfect[ind_] < minimum_grasp_per_fc:
-                        canny_quality = PointGraspMetrics3D.grasp_quality(j, obj,
+                    if good_count_perfect[ind_] < grasp_num_per_fc:
+                        canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj,
                                                                           canny_quality_config[value_fc], vis=False)
-                        good_grasp.append((j, value_fc, canny_quality))
+                        good_grasp.append((grasp, value_fc, canny_quality))
                         good_count_perfect[ind_] += 1
                     break
-        print('Worker:', i, 'Object:{} GoodGrasp:{}'.format(object_name, good_count_perfect))
+        print('Worker:', i, 'Object:{} GoodGraspNum:{}\n\n'.format(object_name, good_count_perfect))
 
     object_name_len = len(object_name)
     object_name_ = str(object_name) + " " * (25 - object_name_len)
@@ -153,7 +163,7 @@ def worker(i, sample_nums, grasp_amount, good_grasp):
         good_grasp_rate = 0
     else:
         good_grasp_rate = len(good_grasp) / count
-    print('Worker:', i, 'Gripper:{} Object:{} Rate:{:.4f} {}/{}'.
+    print('Worker:', i, 'Gripper:{} Object:{} Rate:{:.4f} {}/{}\n\n'.
           format(gripper_name, object_name_, good_grasp_rate, len(good_grasp), count))
 
 
@@ -167,6 +177,11 @@ if __name__ == '__main__':
     file_list_all = get_file_name(file_dir)
     object_numbers = file_list_all.__len__()
     print("[file_list_all]:", file_list_all, object_numbers, "\n")
+
+    # test a worker
+    good_grasp = []
+    worker(0, 20, 10, good_grasp)
+    exit()
 
     job_list = np.arange(object_numbers)
     job_list = list(job_list)
@@ -188,4 +203,3 @@ if __name__ == '__main__':
                 p.start()
                 pool.append(p)
                 break
-    print('All job done.')
