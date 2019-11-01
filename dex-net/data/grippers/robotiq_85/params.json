@@ -1,7 +1,7 @@
 {
   "min_width": 0.0,
   "force_limit": 235.0,
-  "max_width": 0.085,
+  "max_width": 0.115,
   "finger_radius": 0.01,
   "max_depth": 0.03,
   "finger_width": 0.015,

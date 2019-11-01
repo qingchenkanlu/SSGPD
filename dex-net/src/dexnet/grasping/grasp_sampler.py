@@ -969,6 +969,7 @@ class GpgGraspSampler(GraspSampler):
             sampled_surface_amount += 1
             logger.info("current amount of sampled surface %d", sampled_surface_amount)
 
+        # convert grasps to dexnet formate
         for grasp in processed_potential_grasp:
             grasp_bottom_center = np.array(grasp[0])
             grasp_normal = np.array(grasp[1])
@@ -977,8 +978,8 @@ class GpgGraspSampler(GraspSampler):
 
             grasp_top_center = grasp_bottom_center + self.gripper.hand_depth * grasp_normal
             grasp3d = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(
-                grasp_top_center, major_pc, self.gripper.max_width, normal=grasp_normal,
-                minor_pc=minor_pc), type='frame')
+                grasp_top_center, major_pc, self.gripper.hand_outer_diameter-self.gripper.finger_width,
+                normal=grasp_normal, minor_pc=minor_pc), type='frame')
             grasps.append(grasp3d)
 
         if vis:

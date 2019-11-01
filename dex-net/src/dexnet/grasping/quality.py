@@ -36,20 +36,14 @@ try:
     import cvxopt as cvx
 except:
     logging.warning('Failed to import cvx')
-import os
-import scipy.spatial as ss
+
 import sys
 import time
 
 from dexnet.grasping import PointGrasp, GraspableObject3D, GraspQualityConfig
 
-import meshpy.obj_file as obj_file
-import meshpy.sdf_file as sdf_file
-
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-
-import IPython
 
 # turn off output logging
 cvx.solvers.options['show_progress'] = False
@@ -93,6 +87,7 @@ class PointGraspMetrics3D:
         # get point grasp contacts
         contacts_start = time.time()
         contacts_found, contacts = grasp.close_fingers(obj, check_approach=check_approach, vis=vis)
+
         if not contacts_found:
             logging.debug('Contacts not found')
             print('Contacts not found')

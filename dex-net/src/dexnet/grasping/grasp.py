@@ -324,6 +324,7 @@ class ParallelJawPtGrasp3D(PointGrasp):
             normalized axis of grasp in 3D space, major principle curvature
         max_width : float
             maximum opening width of jaws
+            Note: should >= hand_outer_diameter-2finger_width, could be hand_outer_diameter-finger_width
         angle : float
             approach angle
         jaw_width : float
@@ -542,6 +543,7 @@ class ParallelJawPtGrasp3D(PointGrasp):
         # get grasp endpoints in sdf frame
         g1_world, g2_world = self.endpoints
 
+        # show endpoints
         if vis and False:
             self.show_surface_points(obj)
             self.show_points(np.array([g1_world, g2_world]), color='r', scale_factor=0.005)
@@ -573,14 +575,19 @@ class ParallelJawPtGrasp3D(PointGrasp):
         c1_found, c1 = self.find_contact(line_of_action1, obj, vis=vis)
         c2_found, c2 = self.find_contact(line_of_action2, obj, vis=vis)
 
-        if vis and False:
+        contacts_found = c1_found and c2_found
+
+        if contacts_found:
+            print("close_fingers|contacts_found", contacts_found)
+
+        if vis and contacts_found:
+            print("show")
             self.show_surface_points(obj)
             self.show_arrow(c1.point, c1.in_direction, 'r')
             self.show_arrow(c2.point, c2.in_direction, 'g')
             self.show_surface_points(obj)
             mlab.show()
 
-        contacts_found = c1_found and c2_found
         return contacts_found, [c1, c2]
 
     def vis_grasp(self, obj, *args, **kwargs):

@@ -21,5 +21,6 @@ MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 """
 from dexnet.visualization.visualizer2d import DexNetVisualizer2D
 from dexnet.visualization.visualizer3d import DexNetVisualizer3D
+from dexnet.visualization.visualizer3d import MayaviVisualizer3D
 
 __all__ = ['DexNetVisualizer2D', 'DexNetVisualizer3D']

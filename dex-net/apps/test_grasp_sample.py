@@ -3,15 +3,41 @@
 # Author: sdhm
 
 import numpy as np
-import sys
-import pickle
 from dexnet.grasping.quality import PointGraspMetrics3D
-from dexnet.grasping import GaussianGraspSampler, AntipodalGraspSampler, UniformGraspSampler, GpgGraspSampler
-from dexnet.grasping import RobotGripper, GraspableObject3D, GraspQualityConfigFactory, PointGraspSampler
+from dexnet.grasping import ParallelJawPtGrasp3D, AntipodalGraspSampler, GpgGraspSampler
+from dexnet.grasping import RobotGripper, GraspableObject3D, GraspQualityConfigFactory
 from autolab_core import YamlConfig
 from meshpy.obj_file import ObjFile
 from meshpy.sdf_file import SdfFile
 import os
+
+
+def test_grasp_example():
+    yaml_config['metrics']['force_closure']['friction_coef'] = 2.0
+    force_closure_quality_config = GraspQualityConfigFactory.create_config(yaml_config['metrics']['force_closure'])
+
+    grasp3d = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(
+        [-0.02845172, -0.03360422, 0.08925702],
+        [-0.93863103, -0.34468021, -0.01293627],
+        0.115,
+        normal=[-0.34477207, 0.93866949, 0.00564044],
+        minor_pc=[-0.01019873, -0.00975435, 0.99990041]), type='frame')
+    is_force_closure, contacts_found = PointGraspMetrics3D.grasp_quality(grasp3d, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
+                                                                         force_closure_quality_config,
+                                                                         vis=False)
+
+    print("contacts_found", contacts_found)
+
+    ags = GpgGraspSampler(gripper, yaml_config)
+    ags.new_window(800)
+    ags.show_points(np.array([-0.02845172, -0.03360422, 0.08925702]), color='g', scale_factor=0.005)
+    print("grasp.center", np.array(grasp3d.center))
+    ags.show_points(np.array(grasp3d.center), color='r', scale_factor=0.005)
+    ags.show_points(np.array(grasp3d.endpoints), color='b', scale_factor=0.005)
+    ags.show_surface_points(obj)
+    ags.display_grasps3d([grasp3d], 'g')
+    ags.show()
+    exit()
 
 
 def test_grasp_sample(target_num_grasps):
@@ -66,14 +92,18 @@ def test_grasp_sample(target_num_grasps):
                 # ags.display_grasps3d([grasp], 'b')
                 break
 
-            if contacts_found:
-                # ags.new_window(800)
-                # ags.show_surface_points(obj)
-                # ags.display_grasps3d([grasp], 'r')
-                # ags.show()
+            if not contacts_found:
+                ags.new_window(800)
+                ags.show_surface_points(obj)
+                ags.display_grasps3d([grasp], 'r')
+                ags.show_points(np.array(grasp.center), color='r', scale_factor=0.005)
+                ags.show_points(np.array(grasp.endpoints), color='b', scale_factor=0.005)
+                ags.show()
 
                 PointGraspMetrics3D.grasp_quality(grasp, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
                                                   force_closure_quality_config[value_fc], vis=True)
+
+
                 break
 
     # ags.show_surface_points(obj)

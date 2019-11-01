@@ -34,6 +34,7 @@ from autolab_core import RigidTransform
 
 from dexnet.constants import NO_CONTACT_DIST
 from dexnet.constants import WIN_DIST_LIM
+import dexnet.visualization
 
 import IPython
 import matplotlib.pyplot as plt
@@ -638,8 +639,25 @@ class Contact3D(Contact):
         ax.set_xlim3d(0, self.graspable.sdf.dims_[0])
         ax.set_ylim3d(0, self.graspable.sdf.dims_[1])
         ax.set_zlim3d(0, self.graspable.sdf.dims_[2])
+        plt.show()
 
         return plt.Rectangle((0, 0), 1, 1, fc=color)  # return a proxy for legend
+
+    def plot_friction_cone_3d(self, obj):  # FIXME: not complete
+        success, cone, in_normal = self.friction_cone()
+        cone_points = cone.T
+        cone_points_world = []
+        for point in cone_points:
+            cone_points_world.append(obj.sdf.transform_pt_grid_to_obj(point) + self.point)
+        print(np.array(cone_points_world))
+
+        mv = dexnet.visualization.MayaviVisualizer3D()
+        mv.show_surface_points(obj)
+        mv.show_points(self.point, scale_factor=0.005)
+        mv.show_arrow(self.point, self.in_direction)
+        # mv.show_points(cone_points, color='g', scale_factor=0.005)
+        mv.show_points(np.array(cone_points_world), scale_factor=0.005)
+        mv.show()
 
 
 class SurfaceWindow:

@@ -57,7 +57,7 @@ cd $HOME/code/
     ```bash
     "min_width":
     "force_limit":
-    "max_width":
+    "max_width": 用于计算endpoints,设为hand_outer_diameter-finger_width较为合适,会影响接触点计算！！！
     "finger_radius":
     "max_depth":
     ```
