@@ -99,7 +99,7 @@ class PointGraspMetrics3D:
             return 0, contacts_found
 
         if method == 'force_closure':
-            # Use fast force closure test (Nguyen 1988) if possible.
+            # Use fast force closure test if possible.
             if len(contacts) == 2:
                 c1, c2 = contacts
                 return PointGraspMetrics3D.force_closure(c1, c2, friction_coef), contacts_found
@@ -115,11 +115,11 @@ class PointGraspMetrics3D:
         normals = np.zeros([3, 0])
         for i in range(num_contacts):
             contact = contacts[i]
-            if vis:
-                if i == 0:
-                    contact.plot_friction_cone(color='y')
-                else:
-                    contact.plot_friction_cone(color='c')
+            # if vis:  # FIXME
+            #     if i == 0:
+            #         contact.plot_friction_cone(color='y')
+            #     else:
+            #         contact.plot_friction_cone(color='c')
 
             # get contact forces
             force_success, contact_forces, contact_outward_normal = contact.friction_cone(num_cone_faces, friction_coef)
@@ -159,13 +159,13 @@ class PointGraspMetrics3D:
                 print("torque scaling", torque_scaling)
             params.torque_scaling = torque_scaling
 
-        if vis:
-            ax = plt.gca()
-            ax.set_xlim3d(0, obj.sdf.dims_[0])
-            ax.set_ylim3d(0, obj.sdf.dims_[1])
-            ax.set_zlim3d(0, obj.sdf.dims_[2])
-            plt.show()
-            plt.savefig("qual.png")
+        # if vis:  # FIXME
+        #     ax = plt.gca()
+        #     ax.set_xlim3d(0, obj.sdf.dims_[0])
+        #     ax.set_ylim3d(0, obj.sdf.dims_[1])
+        #     ax.set_zlim3d(0, obj.sdf.dims_[2])
+        #     plt.show()
+        #     plt.savefig("qual.png")
 
         # evaluate the desired quality metric
         quality_start = time.time()

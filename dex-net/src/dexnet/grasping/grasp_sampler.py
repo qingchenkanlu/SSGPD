@@ -239,6 +239,20 @@ class GraspSampler:
             color_f = (1, 1, 1)
         mlab.plot3d([un1[0], un2[0]], [un1[1], un2[1]], [un1[2], un2[2]], color=color_f, tube_radius=scale_factor)
 
+    def show_arrow(self, point, direction, color='lb'):
+        if color == 'b':
+            color_f = (0, 0, 1)
+        elif color == 'r':
+            color_f = (1, 0, 0)
+        elif color == 'g':
+            color_f = (0, 1, 0)
+        elif color == 'lb':  # light blue
+            color_f = (0.22, 1, 1)
+        else:
+            color_f = (1, 1, 1)
+        mlab.quiver3d(point[0], point[1], point[2], direction[0], direction[1], direction[2],
+                      scale_factor=.03, line_width=0.05, color=color_f, mode='arrow')
+
     def show_grasp_norm_oneside(self, grasp_bottom_center,
                                 grasp_normal, grasp_axis, minor_pc, scale_factor=0.001):
 

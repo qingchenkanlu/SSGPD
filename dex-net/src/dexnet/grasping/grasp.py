@@ -25,23 +25,25 @@
 # """
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
-import IPython
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.linalg import inv, norm
-import time
 
 from autolab_core import Point, RigidTransform
 from meshpy import Sdf3D, StablePose
 
-# try:
-#     from gqcnn import Grasp2D
-# except:
-#     logging.warning('Failed to import gqcnn! Grasp2D functions will not be available.')
-
 from dexnet import abstractstatic
 from dexnet.grasping import Contact3D, GraspableObject3D
+
+try:
+    import mayavi.mlab as mlab
+except:
+    try:
+        import mayavi.mlab as mlab
+    except ImportError:
+        mlab = []
+        logging.error('Failed to import mayavi')
 
 
 # class Grasp(object, metaclass=ABCMeta):
@@ -88,6 +90,41 @@ class Grasp(object):
     def configuration_from_params(*params):
         """ Convert param list to a configuration vector for the class """
         pass
+
+    def show_points(self, point, color='lb', scale_factor=.0005):
+        if color == 'b':
+            color_f = (0, 0, 1)
+        elif color == 'r':
+            color_f = (1, 0, 0)
+        elif color == 'g':
+            color_f = (0, 1, 0)
+        elif color == 'lb':  # light blue
+            color_f = (0.22, 1, 1)
+        else:
+            color_f = (1, 1, 1)
+        if point.size == 3:  # vis for only one point, shape must be (3,), for shape (1, 3) is not work
+            point = point.reshape(3, )
+            mlab.points3d(point[0], point[1], point[2], color=color_f, scale_factor=scale_factor)
+        else:  # vis for multiple points
+            mlab.points3d(point[:, 0], point[:, 1], point[:, 2], color=color_f, scale_factor=scale_factor)
+
+    def show_arrow(self, point, direction, color='lb'):
+        if color == 'b':
+            color_f = (0, 0, 1)
+        elif color == 'r':
+            color_f = (1, 0, 0)
+        elif color == 'g':
+            color_f = (0, 1, 0)
+        elif color == 'lb':  # light blue
+            color_f = (0.22, 1, 1)
+        else:
+            color_f = (1, 1, 1)
+        mlab.quiver3d(point[0], point[1], point[2], direction[0], direction[1], direction[2],
+                      scale_factor=.03, line_width=0.05, color=color_f, mode='arrow')
+
+    def show_surface_points(self, obj):
+        surface_points, _ = obj.sdf.surface_points(grid_basis=False)
+        self.show_points(surface_points)
 
 
 # class PointGrasp(Grasp, metaclass=ABCMeta):
@@ -231,7 +268,9 @@ class ParallelJawPtGrasp3D(PointGrasp):
         Returns
         -------
         :obj:`numpy.ndarray`
-            location of jaws in 3D space at max opening width """
+            location of jaws(fingers) in 3D space at max opening width
+            Note: return the two fingers' tip location
+        """
         return self.center_ - (self.max_grasp_width_ / 2.0) * self.axis_, self.center_ + (
                 self.max_grasp_width_ / 2.0) * self.axis_,
 
@@ -496,17 +535,17 @@ class ParallelJawPtGrasp3D(PointGrasp):
         c2 : :obj:`Contact3D`
             the contact point for jaw 2
         """
-        if vis:
-            plt.figure()
-            plt.clf()
-            h = plt.gcf()
-            # plt.ion()
         # compute num samples to use based on sdf resolution
         grasp_width_grid = obj.sdf.transform_pt_obj_to_grid(self.max_grasp_width_)
         num_samples = int(Grasp.samples_per_grid * float(grasp_width_grid) / 2)  # at least 1 sample per grid
 
         # get grasp endpoints in sdf frame
         g1_world, g2_world = self.endpoints
+
+        if vis and False:
+            self.show_surface_points(obj)
+            self.show_points(np.array([g1_world, g2_world]), color='r', scale_factor=0.005)
+            mlab.show()
 
         # check for contact along approach
         if check_approach:
@@ -530,23 +569,16 @@ class ParallelJawPtGrasp3D(PointGrasp):
         line_of_action2 = ParallelJawPtGrasp3D.create_line_of_action(g2_world, -self.axis_, self.open_width, obj,
                                                                      num_samples, min_width=self.close_width)
 
-        if vis:
-            ax = plt.gca(projection='3d')
-            surface = obj.sdf.surface_points()[0]
-            surface = surface[np.random.choice(surface.shape[0], 1000, replace=False)]
-            ax.scatter(surface[:, 0], surface[:, 1], surface[:, 2], '.',
-                       s=np.ones_like(surface[:, 0]) * 0.3, c='b')
-
         # find contacts
-        c1_found, c1 = ParallelJawPtGrasp3D.find_contact(line_of_action1, obj, vis=vis)
-        c2_found, c2 = ParallelJawPtGrasp3D.find_contact(line_of_action2, obj, vis=vis)
+        c1_found, c1 = self.find_contact(line_of_action1, obj, vis=vis)
+        c2_found, c2 = self.find_contact(line_of_action2, obj, vis=vis)
 
-        if vis:
-            ax = plt.gca(projection='3d')
-            ax.set_xlim3d(0, obj.sdf.dims_[0])
-            ax.set_ylim3d(0, obj.sdf.dims_[1])
-            ax.set_zlim3d(0, obj.sdf.dims_[2])
-            plt.draw()
+        if vis and False:
+            self.show_surface_points(obj)
+            self.show_arrow(c1.point, c1.in_direction, 'r')
+            self.show_arrow(c2.point, c2.in_direction, 'g')
+            self.show_surface_points(obj)
+            mlab.show()
 
         contacts_found = c1_found and c2_found
         return contacts_found, [c1, c2]
@@ -621,7 +653,6 @@ class ParallelJawPtGrasp3D(PointGrasp):
         contacts_found = c1_found and c2_found
         return contacts_found
 
-    @staticmethod
     def create_line_of_action(g, axis, width, obj, num_samples, min_width=0, convert_grid=True):
         """
         Creates a straight line of action, or list of grid points, from a given point and direction in world or grid coords
@@ -653,8 +684,7 @@ class ParallelJawPtGrasp3D(PointGrasp):
             line_of_action = list(transformed.T)
         return line_of_action
 
-    @staticmethod
-    def find_contact(line_of_action, obj, vis=False, strict=False):
+    def find_contact(self, line_of_action, obj, vis=False, find_zc=False, strict=False):
         """
         Find the point at which a point traveling along a given line of action hits a surface.
 
@@ -666,6 +696,8 @@ class ParallelJawPtGrasp3D(PointGrasp):
             to check contacts on
         vis : bool
             whether or not to display the contact check (for debugging)
+        find_zc : bool
+            whether or not to find zero crossing quadratic
 
         Returns
         -------
@@ -676,7 +708,7 @@ class ParallelJawPtGrasp3D(PointGrasp):
         """
         contact_found = False
         pt_zc = None
-        pt_zc_world = None
+        point_world = None
         contact = None
         num_pts = len(line_of_action)
         sdf_here = 0
@@ -694,15 +726,13 @@ class ParallelJawPtGrasp3D(PointGrasp):
             sdf_before = sdf_here
             pt_grid = line_of_action[i]
 
-            # visualize
-            if vis:
-                ax = plt.gca(projection='3d')
-                ax.scatter(pt_grid[0], pt_grid[1], pt_grid[2], c='r')
-
             # check surface point
             on_surface, sdf_here = obj.sdf.on_surface(pt_grid)
             if on_surface:
                 contact_found = True
+                if not find_zc:
+                    break
+
                 if strict:
                     return contact_found, None
 
@@ -738,19 +768,25 @@ class ParallelJawPtGrasp3D(PointGrasp):
                         contact_found = False
             i = i + 1
 
-        # visualization
-        if vis and contact_found:
-            ax = plt.gca(projection='3d')
-            ax.scatter(pt_zc[0], pt_zc[1], pt_zc[2], s=80, c='g')
-
         if contact_found:
-            pt_zc_world = obj.sdf.transform_pt_grid_to_obj(pt_zc)
+            if not find_zc:
+                point_world = obj.sdf.transform_pt_grid_to_obj(pt_grid)
+            else:
+                point_world = obj.sdf.transform_pt_grid_to_obj(pt_zc)
+
             in_direction_grid = line_of_action[-1] - line_of_action[0]
             in_direction_grid = in_direction_grid / np.linalg.norm(in_direction_grid)
             in_direction = obj.sdf.transform_pt_grid_to_obj(in_direction_grid, direction=True)
-            contact = Contact3D(obj, pt_zc_world, in_direction=in_direction)
+            contact = Contact3D(obj, point_world, in_direction=in_direction)
             if contact.normal is None:
                 contact_found = False
+
+            if vis and False:
+                self.show_arrow(point_world, in_direction)
+                self.show_surface_points(obj)
+                self.show_points(np.array(point_world), color='r', scale_factor=0.005)
+                mlab.show()
+
         return contact_found, contact
 
     def _angle_aligned_with_stable_pose(self, stable_pose):
@@ -960,22 +996,22 @@ class ParallelJawPtGrasp3D(PointGrasp):
         line_of_action2 = ParallelJawPtGrasp3D.create_line_of_action(g2, -grasp_axis_grid, 2 * grasp_width_grid, obj,
                                                                      num_samples,
                                                                      min_width=0, convert_grid=False)
-        if vis:
-            obj.sdf.scatter()
-            ax = plt.gca(projection='3d')
-            ax.scatter(grasp_c1_grid[0] - grasp_axis_grid[0], grasp_c1_grid[1] - grasp_axis_grid[1],
-                       grasp_c1_grid[2] - grasp_axis_grid[2], c='r')
-            ax.scatter(grasp_c1_grid[0], grasp_c1_grid[1], grasp_c1_grid[2], s=80, c='b')
+        # if vis:  # FIXME
+        #     obj.sdf.scatter()
+        #     ax = plt.gca(projection='3d')
+        #     ax.scatter(grasp_c1_grid[0] - grasp_axis_grid[0], grasp_c1_grid[1] - grasp_axis_grid[1],
+        #                grasp_c1_grid[2] - grasp_axis_grid[2], c='r')
+        #     ax.scatter(grasp_c1_grid[0], grasp_c1_grid[1], grasp_c1_grid[2], s=80, c='b')
 
         # compute the contact points on the object
         contact1_found, c1 = ParallelJawPtGrasp3D.find_contact(line_of_action1, obj, vis=vis)
         contact2_found, c2 = ParallelJawPtGrasp3D.find_contact(line_of_action2, obj, vis=vis)
 
-        if vis:
-            ax.set_xlim3d(0, obj.sdf.dims_[0])
-            ax.set_ylim3d(0, obj.sdf.dims_[1])
-            ax.set_zlim3d(0, obj.sdf.dims_[2])
-            plt.draw()
+        # if vis:  # FIXME
+        #     ax.set_xlim3d(0, obj.sdf.dims_[0])
+        #     ax.set_ylim3d(0, obj.sdf.dims_[1])
+        #     ax.set_zlim3d(0, obj.sdf.dims_[2])
+        #     plt.draw()
         if not contact1_found or not contact2_found or np.linalg.norm(c1.point - c2.point) <= min_grasp_width_world:
             logging.debug('No contacts found for grasp')
             return None, None, None

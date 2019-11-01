@@ -25,7 +25,7 @@ def test_grasp_sample(target_num_grasps):
     else:
         # Test GpgGraspSampler
         ags = GpgGraspSampler(gripper, yaml_config)
-        grasps = ags.sample_grasps(obj, num_grasps=50, max_num_samples=10, vis=False)
+        grasps = ags.sample_grasps(obj, num_grasps=50, max_num_samples=5, vis=False)
 
     # test quality
     force_closure_quality_config = {}
@@ -63,20 +63,20 @@ def test_grasp_sample(target_num_grasps):
                 canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj,
                                                                   canny_quality_config[value_fc], vis=False)
                 good_count_perfect[ind_] += 1
-                ags.display_grasps3d([grasp], 'b')
+                # ags.display_grasps3d([grasp], 'b')
                 break
 
-            if not contacts_found:
-                ags.new_window(800)
-                ags.show_surface_points(obj)
-                ags.display_grasps3d([grasp], 'r')
-                ags.show()
+            if contacts_found:
+                # ags.new_window(800)
+                # ags.show_surface_points(obj)
+                # ags.display_grasps3d([grasp], 'r')
+                # ags.show()
 
                 PointGraspMetrics3D.grasp_quality(grasp, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
-                                                  force_closure_quality_config[value_fc], vis=False)
+                                                  force_closure_quality_config[value_fc], vis=True)
                 break
 
-    ags.show_surface_points(obj)
+    # ags.show_surface_points(obj)
     # ags.show()
 
     return True
