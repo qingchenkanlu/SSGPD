@@ -96,13 +96,13 @@ class PointGraspMetrics3D:
         if not contacts_found:
             logging.debug('Contacts not found')
             print('Contacts not found')
-            return 0
+            return 0, contacts_found
 
         if method == 'force_closure':
             # Use fast force closure test (Nguyen 1988) if possible.
             if len(contacts) == 2:
                 c1, c2 = contacts
-                return PointGraspMetrics3D.force_closure(c1, c2, friction_coef)
+                return PointGraspMetrics3D.force_closure(c1, c2, friction_coef), contacts_found
 
             # Default to QP force closure test.
             method = 'force_closure_qp'
@@ -128,7 +128,7 @@ class PointGraspMetrics3D:
                 print('Force computation failed')
                 logging.debug('Force computation failed')
                 if params.all_contacts_required:
-                    return 0
+                    return 0, contacts_found
 
             # get contact torques
             torque_success, contact_torques = contact.torques(contact_forces)
@@ -136,7 +136,7 @@ class PointGraspMetrics3D:
                 print('Torque computation failed')
                 logging.debug('Torque computation failed')
                 if params.all_contacts_required:
-                    return 0
+                    return 0, contacts_found
 
             # get the magnitude of the normal force that the contacts could apply
             n = contact.normal_force_magnitude()
@@ -148,7 +148,7 @@ class PointGraspMetrics3D:
         if normals.shape[1] == 0:
             logging.debug('No normals')
             print('No normals')
-            return 0
+            return 0, contacts_found
 
         # normalize torques
         if 'torque_scaling' not in list(params.keys()):
@@ -180,7 +180,7 @@ class PointGraspMetrics3D:
         logging.debug('Quality eval took %.3f sec' % (end - quality_start))
         logging.debug('Everything took %.3f sec' % (end - start))
 
-        return quality
+        return quality, contacts_found
 
     @staticmethod
     def grasp_matrix(forces, torques, normals, soft_fingers=False,

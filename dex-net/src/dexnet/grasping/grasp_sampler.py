@@ -472,6 +472,9 @@ class GraspSampler:
 
             self.show_grasp_3d(hand_points, color=color_f)
 
+    def new_window(self, size=500):
+        mlab.figure(bgcolor=(0.5, 0.5, 0.5), size=(size, size))
+
     def show(self):
         mlab.show()
 
@@ -714,14 +717,17 @@ class GpgGraspSampler(GraspSampler):
         params = {
             'num_rball_points': 27,  # FIXME: the same as meshpy..surface_normal()
             'num_dy': 10,  # number
-            'dtheta': 5,  # unit degree
-            'range_dtheta': 90,
+            'num_dz': 5,  # number
+            'dtheta': 10,  # unit degree
+            'range_dtheta': 60,
+            'range_dtheta_major': 30,
             'debug_vis': False,
             'r_ball': self.gripper.hand_height,
             'approach_step': 0.01,
-            'keepaway_step': 0.01,
+            'keepaway_step': 0.015,
             'max_trail_for_r_ball': 3000,
             'voxel_grid_ratio': 5,  # voxel_grid/sdf.resolution
+            'min_points_num': 100,
         }
 
         # get all surface points
@@ -799,113 +805,152 @@ class GpgGraspSampler(GraspSampler):
                 new_normal = -new_normal
                 minor_pc = -minor_pc
 
-            for normal_dir in [1.]:  # NOTE: here we can now know the direction of norm, outward
-                """ Step1: rotat grasp around an axis(minor_pc:blue) """
-                potential_grasp = []
-                for dtheta in np.arange(-params['range_dtheta'], params['range_dtheta'] + 1, params['dtheta']):
-                    dy_potentials = []
-                    x, y, z = minor_pc
-                    rotation = RigidTransform.rotation_from_quaternion(np.array([dtheta / 180 * np.pi, x, y, z]))
+            """ Step1: rotat grasp around an axis(minor_pc:blue) """
+            potential_grasp = []
+            for dtheta in np.arange(-params['range_dtheta'], params['range_dtheta'] + 1, params['dtheta']):
+                dy_potentials = []
+                x, y, z = minor_pc
+                rotation = RigidTransform.rotation_from_quaternion(np.array([dtheta / 180 * np.pi, x, y, z]))
 
-                    """ Step2: move step by step according to major_pc """
-                    for dy in np.arange(-params['num_dy'] * self.gripper.finger_width,
-                                        (params['num_dy'] + 1) * self.gripper.finger_width, self.gripper.finger_width):
-                        # compute centers and axes
-                        tmp_major_pc = np.dot(rotation, major_pc * normal_dir)
-                        tmp_grasp_normal = np.dot(rotation, new_normal * normal_dir)
-                        tmp_grasp_bottom_center = selected_surface + tmp_major_pc * dy
-                        # go back a bite after rotation dtheta and translation dy!
-                        tmp_grasp_bottom_center = self.gripper.init_bite * (-tmp_grasp_normal * normal_dir) + tmp_grasp_bottom_center
+                """ Step2: move step by step according to major_pc """
+                for dy in np.arange(-params['num_dy'] * self.gripper.finger_width,
+                                    (params['num_dy'] + 1) * self.gripper.finger_width, self.gripper.finger_width):
+                    # compute centers and axes
+                    tmp_major_pc = np.dot(rotation, major_pc)
+                    tmp_grasp_normal = np.dot(rotation, new_normal)
+                    tmp_grasp_bottom_center = selected_surface + tmp_major_pc * dy
+                    # go back a bite after rotation dtheta and translation dy!
+                    tmp_grasp_bottom_center = self.gripper.init_bite * (-tmp_grasp_normal) + tmp_grasp_bottom_center
 
-                        open_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                    has_open_points, points_in_open = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                 tmp_major_pc, minor_pc, graspable,
+                                                                 hand_points, "p_open")
+                    bottom_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                   tmp_major_pc, minor_pc, graspable,
+                                                                   hand_points, "p_bottom")
+
+                    if len(points_in_open) > params['min_points_num'] and bottom_points is False:
+                        left_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
                                                                      tmp_major_pc, minor_pc, graspable,
-                                                                     hand_points, "p_open")
-                        bottom_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                                       tmp_major_pc, minor_pc, graspable,
-                                                                       hand_points, "p_bottom")
+                                                                     hand_points, "p_left")
+                        right_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                      tmp_major_pc, minor_pc, graspable,
+                                                                      hand_points, "p_right")
 
-                        if open_points is True and bottom_points is False:
-                            left_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                                         tmp_major_pc, minor_pc, graspable,
-                                                                         hand_points, "p_left")
-                            right_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                                          tmp_major_pc, minor_pc, graspable,
-                                                                          hand_points, "p_right")
+                        if left_points is False and right_points is False:
+                            dy_potentials.append([tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                  tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
+                            # potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal,
+                            #                        tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
 
-                            if left_points is False and right_points is False:
-                                dy_potentials.append([tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                      tmp_major_pc, minor_pc])
-                                # potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal,
-                                #                        tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
+                if len(dy_potentials) != 0:
+                    # FIXME: we only take the middle grasp from dy direction.
+                    potential_grasp.append(dy_potentials[int(np.ceil(len(dy_potentials) / 2) - 1)])
 
-                    if len(dy_potentials) != 0:
-                        # FIXME: we only take the middle grasp from dy direction.
-                        potential_grasp.append(dy_potentials[int(np.ceil(len(dy_potentials) / 2) - 1)])
+            """ Step3: rotat grasp around an axis(major_pc:green) """
+            for dtheta in np.arange(-params['range_dtheta_major'], params['range_dtheta_major'] + 1, params['dtheta']):
+                dz_potentials = []
+                x, y, z = major_pc
+                rotation = RigidTransform.rotation_from_quaternion(np.array([dtheta / 180 * np.pi, x, y, z]))
 
-                """ Step3: approach step by step """
-                approach_dist = self.gripper.hand_depth  # use gripper depth
-                num_approaches = int(approach_dist / params['approach_step'])
-                for ptg in potential_grasp:
-                    for approach_s in range(num_approaches):
-                        # move approach close to the obj
-                        tmp_grasp_bottom_center = ptg[1] * approach_s * params['approach_step'] + ptg[0]
-                        tmp_grasp_normal, tmp_major_pc, minor_pc = (ptg[1], ptg[2], ptg[3])
+                """ Step2: move step by step according to minor_pc """
+                for dz in np.arange(-params['num_dz'] * self.gripper.finger_width,
+                                    (params['num_dz'] + 1) * self.gripper.finger_width, self.gripper.finger_width):
+                    # compute centers and axes
+                    tmp_minor_pc = np.dot(rotation, minor_pc)
+                    tmp_grasp_normal = np.dot(rotation, new_normal)
+                    tmp_grasp_bottom_center = selected_surface + tmp_minor_pc * dz
+                    # go back a bite after rotation dtheta and translation dy!
+                    tmp_grasp_bottom_center = self.gripper.init_bite * (-tmp_grasp_normal) + tmp_grasp_bottom_center
 
+                    has_open_points, points_in_open = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                                  major_pc, tmp_minor_pc, graspable,
+                                                                                  hand_points, "p_open")
+                    bottom_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                   major_pc, tmp_minor_pc, graspable,
+                                                                   hand_points, "p_bottom")
+
+                    if len(points_in_open) > params['min_points_num'] and bottom_points is False:
+                        left_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                     major_pc, tmp_minor_pc, graspable,
+                                                                     hand_points, "p_left")
+                        right_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                                      major_pc, tmp_minor_pc, graspable,
+                                                                      hand_points, "p_right")
+
+                        if left_points is False and right_points is False:
+                            dz_potentials.append([tmp_grasp_bottom_center, tmp_grasp_normal, major_pc,
+                                                  tmp_minor_pc, tmp_grasp_bottom_center])
+                            # potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal, major_pc,
+                            #                         minor_pc, tmp_grasp_bottom_center])
+
+                if len(dz_potentials) != 0:
+                    # FIXME: we only take the middle grasp from dy direction.
+                    potential_grasp.append(dz_potentials[int(np.ceil(len(dz_potentials) / 2) - 1)])
+
+            """ Step3: approach step by step """
+            approach_dist = self.gripper.hand_depth  # use gripper depth
+            num_approaches = int(approach_dist / params['approach_step'])
+            for ptg in potential_grasp:
+                for approach_s in range(num_approaches):
+                    # move approach close to the obj
+                    tmp_grasp_bottom_center = ptg[1] * approach_s * params['approach_step'] + ptg[0]
+                    tmp_grasp_normal, tmp_major_pc, minor_pc = (ptg[1], ptg[2], ptg[3])
+
+                    is_collide = self.check_collide(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                    tmp_major_pc, minor_pc, graspable, hand_points)
+                    if is_collide:
+                        # if collide, go back one step to get a collision free hand position
+                        tmp_grasp_bottom_center += (-tmp_grasp_normal) * params['approach_step']
+
+                        # final check
+                        has_open_points, points_in_open = self.check_collision_square(tmp_grasp_bottom_center,
+                                                                                      tmp_grasp_normal,
+                                                                                      tmp_major_pc, minor_pc, graspable,
+                                                                                      hand_points, "p_open")
                         is_collide = self.check_collide(tmp_grasp_bottom_center, tmp_grasp_normal,
                                                         tmp_major_pc, minor_pc, graspable, hand_points)
-                        if is_collide:
-                            # if collide, go back one step to get a collision free hand position
-                            tmp_grasp_bottom_center += (-tmp_grasp_normal) * params['approach_step']
-
-                            # final check
-                            open_points, _ = self.check_collision_square(tmp_grasp_bottom_center,
-                                                                         tmp_grasp_normal,
-                                                                         tmp_major_pc, minor_pc, graspable,
-                                                                         hand_points, "p_open")
-                            is_collide = self.check_collide(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                            tmp_major_pc, minor_pc, graspable, hand_points)
-                            if open_points and not is_collide:
-                                processed_potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                                  tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
-
-                                if vis:
-                                    logger.info('usefull grasp sample point original: %s', selected_surface)
-                                    self.show_points(selected_surface, color='r', scale_factor=.005)
-                                    self.show_grasp_norm_oneside(selected_surface, new_normal * normal_dir,
-                                                                 major_pc * normal_dir,
-                                                                 minor_pc, scale_factor=0.001)
-
-                            # break after go back one step
-                            break
-
-                """ Step4: keep away step by step """
-                keepaway_dist = self.gripper.hand_depth/3*2  # use gripper depth
-                num_keepaways = int(keepaway_dist / params['keepaway_step'])
-                for ptg in potential_grasp:
-                    for keepaway_s in range(num_keepaways):
-                        tmp_grasp_bottom_center = -(ptg[1] * keepaway_s * params['keepaway_step']) + ptg[0]
-                        tmp_grasp_normal, tmp_major_pc, minor_pc = (ptg[1], ptg[2], ptg[3])
-
-                        open_points, _ = self.check_collision_square(tmp_grasp_bottom_center,
-                                                                     tmp_grasp_normal,
-                                                                     tmp_major_pc, minor_pc, graspable,
-                                                                     hand_points, "p_open")
-                        is_collide = self.check_collide(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                        tmp_major_pc, minor_pc, graspable, hand_points)
-                        if open_points and not is_collide:
+                        if len(points_in_open) > params['min_points_num'] and not is_collide:
                             processed_potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal,
                                                               tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
 
-                        grasp_test.append([tmp_grasp_bottom_center, tmp_grasp_normal,
-                                          tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
+                            if vis:
+                                logger.info('usefull grasp sample point original: %s', selected_surface)
+                                self.show_points(selected_surface, color='r', scale_factor=.005)
+                                self.show_grasp_norm_oneside(selected_surface, new_normal, major_pc,
+                                                             minor_pc, scale_factor=0.001)
 
-                        # if vis:
-                        #     logger.info("processed_potential_grasp %d", len(processed_potential_grasp))
-                        #     # self.show_all_grasps(processed_potential_grasp)
-                        #     self.show_all_grasps(grasp_test)
-                        #     self.show_points(all_points)
-                        #     self.display_grasps3d(grasps, 'g')
-                        #     mlab.show()
+                        # break after go back one step
+                        break
+
+            """ Step4: keep away step by step """
+            keepaway_dist = self.gripper.hand_depth/3*2  # use gripper depth
+            num_keepaways = int(keepaway_dist / params['keepaway_step'])
+            for ptg in potential_grasp:
+                for keepaway_s in range(num_keepaways):
+                    tmp_grasp_bottom_center = -(ptg[1] * keepaway_s * params['keepaway_step']) + ptg[0]
+                    tmp_grasp_normal, tmp_major_pc, minor_pc = (ptg[1], ptg[2], ptg[3])
+
+                    has_open_points, points_in_open = self.check_collision_square(tmp_grasp_bottom_center,
+                                                                                  tmp_grasp_normal,
+                                                                                  tmp_major_pc, minor_pc, graspable,
+                                                                                  hand_points, "p_open")
+                    is_collide = self.check_collide(tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                    tmp_major_pc, minor_pc, graspable, hand_points)
+                    if len(points_in_open) > params['min_points_num'] and not is_collide:
+                        processed_potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal,
+                                                          tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
+
+                    # grasp_test.append([tmp_grasp_bottom_center, tmp_grasp_normal,
+                    #                   tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
+
+                    # if vis:
+                    #     logger.info("processed_potential_grasp %d", len(processed_potential_grasp))
+                    #     # self.show_all_grasps(processed_potential_grasp)
+                    #     self.show_all_grasps(grasp_test)
+                    #     self.show_points(all_points)
+                    #     self.display_grasps3d(grasps, 'g')
+                    #     mlab.show()
 
             sampled_surface_amount += 1
             logger.info("current amount of sampled surface %d", sampled_surface_amount)
@@ -924,8 +969,8 @@ class GpgGraspSampler(GraspSampler):
 
         if vis:
             logger.info("processed_potential_grasp %d", len(processed_potential_grasp))
-            # self.show_all_grasps(processed_potential_grasp)
-            self.show_all_grasps(grasp_test)
+            self.show_all_grasps(processed_potential_grasp)
+            # self.show_all_grasps(grasp_test)
             self.show_points(all_points)
             self.display_grasps3d(grasps, 'g')
             mlab.show()
