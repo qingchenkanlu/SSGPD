@@ -397,9 +397,9 @@ class GraspSampler:
             hand_points = self.get_hand_points(grasp_bottom_center, approach_normal, binormal)
             self.show_grasp_3d(hand_points)
 
-    def show_surface_points(self, graspable):
+    def show_surface_points(self, graspable, color='lb'):
         surface_points, _ = graspable.sdf.surface_points(grid_basis=False)
-        self.show_points(surface_points)
+        self.show_points(surface_points, color=color)
 
     def check_collide(self, grasp_bottom_center, approach_normal, binormal, minor_pc, graspable, hand_points):
         bottom_points = self.check_collision_square(grasp_bottom_center, approach_normal,
@@ -729,19 +729,20 @@ class GpgGraspSampler(GraspSampler):
            list of generated grasps
         """
         params = {
-            'num_rball_points': 27,  # FIXME: the same as meshpy..surface_normal()
-            'num_dy': 10,  # number
-            'num_dz': 5,  # number
-            'dtheta': 10,  # unit degree
-            'range_dtheta': 60,
-            'range_dtheta_major': 30,
-            'debug_vis': False,
+            'num_rball_points': 27,  # same as meshpy..surface_normal()
             'r_ball': self.gripper.hand_height,
-            'approach_step': 0.01,
-            'keepaway_step': 0.015,
             'max_trail_for_r_ball': 3000,
             'voxel_grid_ratio': 5,  # voxel_grid/sdf.resolution
-            'min_points_num': 300,
+
+            'num_dy': 5,  # number 10
+            'num_dz': 5,  # number 5
+            'dtheta': 5,  # unit degree 5
+            'range_dtheta_normal': 45,
+            'range_dtheta_minor': 30,
+            'range_dtheta_major': 30,
+            'approach_step': 0.01,
+            'keepaway_step': 0.015,
+            'min_points_num': 200,
         }
 
         # get all surface points
@@ -787,9 +788,13 @@ class GpgGraspSampler(GraspSampler):
                 new_normal = -new_normal
                 minor_pc = -minor_pc
 
+            # self.show_arrow(selected_surface, new_normal, 'r')
+            # self.show_arrow(selected_surface, major_pc, 'g')
+            # self.show_arrow(selected_surface, minor_pc, 'b')
+
             """ Step1: rotat grasp around an axis(minor_pc:blue) """
             potential_grasp = []
-            for dtheta in np.arange(-params['range_dtheta'], params['range_dtheta'] + 1, params['dtheta']):
+            for dtheta in np.arange(-params['range_dtheta_minor'], params['range_dtheta_minor'] + 1, params['dtheta']):
                 dy_potentials = []
                 x, y, z = minor_pc
                 rotation = RigidTransform.rotation_from_quaternion(np.array([dtheta / 180 * np.pi, x, y, z]))
@@ -805,11 +810,19 @@ class GpgGraspSampler(GraspSampler):
                     tmp_grasp_bottom_center = self.gripper.init_bite * (-tmp_grasp_normal) + tmp_grasp_bottom_center
 
                     has_open_points, points_in_open = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
-                                                                 tmp_major_pc, minor_pc, graspable,
-                                                                 hand_points, "p_open")
+                                                                                  tmp_major_pc, minor_pc, graspable,
+                                                                                  hand_points, "p_open")
                     bottom_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
                                                                    tmp_major_pc, minor_pc, graspable,
                                                                    hand_points, "p_bottom")
+
+                    # grasp_test.append([tmp_grasp_bottom_center, tmp_grasp_normal,
+                    #                               tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
+                    #
+                    # self.show_arrow(tmp_grasp_bottom_center, tmp_grasp_normal, 'r')
+                    # self.show_all_grasps(grasp_test)
+                    # self.show_points(all_points)
+                    # mlab.show()
 
                     if len(points_in_open) > params['min_points_num'] and bottom_points is False:
                         left_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
@@ -852,6 +865,14 @@ class GpgGraspSampler(GraspSampler):
                                                                    major_pc, tmp_minor_pc, graspable,
                                                                    hand_points, "p_bottom")
 
+                    # grasp_test.append([tmp_grasp_bottom_center, tmp_grasp_normal, major_pc,
+                    #                               tmp_minor_pc, tmp_grasp_bottom_center])
+                    #
+                    # self.show_arrow(tmp_grasp_bottom_center, tmp_grasp_normal, 'r')
+                    # self.show_all_grasps(grasp_test)
+                    # self.show_points(all_points)
+                    # mlab.show()
+
                     if len(points_in_open) > params['min_points_num'] and bottom_points is False:
                         left_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_grasp_normal,
                                                                      major_pc, tmp_minor_pc, graspable,
@@ -870,7 +891,53 @@ class GpgGraspSampler(GraspSampler):
                     # FIXME: we only take the middle grasp from dy direction.
                     potential_grasp.append(dz_potentials[int(np.ceil(len(dz_potentials) / 2) - 1)])
 
-            """ Step3: approach step by step """
+            """ Step4: rotat grasp around an axis(normal:red) """
+            for dtheta in np.arange(-params['range_dtheta_normal'], params['range_dtheta_normal'] + 1, params['dtheta']):
+                x, y, z = new_normal
+                rotation = RigidTransform.rotation_from_quaternion(np.array([dtheta / 180 * np.pi, x, y, z]))
+
+                # compute centers and axes
+                tmp_normal = -new_normal
+                tmp_major_pc = np.dot(rotation, major_pc)
+                tmp_minor_pc = np.dot(rotation, minor_pc)
+                # go back a bite after rotation dtheta
+                tmp_grasp_bottom_center = self.gripper.init_bite * (-tmp_normal) + selected_surface
+
+                has_open_points, points_in_open = self.check_collision_square(tmp_grasp_bottom_center, tmp_normal,
+                                                                              tmp_major_pc, tmp_minor_pc, graspable,
+                                                                              hand_points, "p_open")
+                bottom_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_normal,
+                                                               tmp_major_pc, tmp_minor_pc, graspable,
+                                                               hand_points, "p_bottom")
+
+                # grasp_test.append([tmp_grasp_bottom_center, tmp_normal, tmp_major_pc,
+                #                                 tmp_minor_pc, tmp_grasp_bottom_center])
+                #
+                # self.show_arrow(tmp_grasp_bottom_center, tmp_normal, 'r')
+                # self.show_all_grasps(grasp_test)
+                # self.show_points(all_points)
+                # mlab.show()
+
+                if len(points_in_open) > params['min_points_num'] and bottom_points is False:
+                    left_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_normal,
+                                                                 tmp_major_pc, tmp_minor_pc, graspable,
+                                                                 hand_points, "p_left")
+                    right_points, _ = self.check_collision_square(tmp_grasp_bottom_center, tmp_normal,
+                                                                  tmp_major_pc, tmp_minor_pc, graspable,
+                                                                  hand_points, "p_right")
+
+                    if left_points is False and right_points is False:
+                        potential_grasp.append([tmp_grasp_bottom_center, tmp_normal, tmp_major_pc,
+                                                tmp_minor_pc, tmp_grasp_bottom_center])
+            #             grasp_test.append([tmp_grasp_bottom_center, tmp_normal, tmp_major_pc,
+            #                                tmp_minor_pc, tmp_grasp_bottom_center])
+            #
+            # self.show_arrow(selected_surface, new_normal, 'r')
+            # self.show_all_grasps(grasp_test)
+            # self.show_points(all_points)
+            # mlab.show()
+
+            """ Step5: approach step by step """
             approach_dist = self.gripper.hand_depth  # use gripper depth
             num_approaches = int(approach_dist / params['approach_step'])
             for ptg in potential_grasp:
@@ -905,7 +972,7 @@ class GpgGraspSampler(GraspSampler):
                         # break after go back one step
                         break
 
-            """ Step4: keep away step by step """
+            """ Step6: keep away step by step """
             keepaway_dist = self.gripper.hand_depth/3*2  # use gripper depth
             num_keepaways = int(keepaway_dist / params['keepaway_step'])
             for ptg in potential_grasp:
@@ -955,7 +1022,7 @@ class GpgGraspSampler(GraspSampler):
             self.show_all_grasps(processed_potential_grasp)
             # self.show_all_grasps(grasp_test)
             self.show_points(all_points)
-            self.display_grasps3d(grasps, 'g')
+            # self.display_grasps3d(grasps, 'g')
             mlab.show()
 
         # return grasps
@@ -1153,7 +1220,7 @@ class PointGraspSampler(GraspSampler):
             'num_rball_points': 27,  # FIXME: the same as meshpy..surface_normal()
             'num_dy': 10,  # number
             'dtheta': 10,  # unit degree
-            'range_dtheta': 90,
+            'range_dtheta_minor': 90,
             'debug_vis': False,
             'approach_step': 0.005,
             'max_trail_for_r_ball': 3000,
@@ -1218,8 +1285,8 @@ class PointGraspSampler(GraspSampler):
                 potential_grasp = []
                 extra_potential_grasp = []
 
-                for dtheta in np.arange(-params['range_dtheta'],
-                                        params['range_dtheta'] + 1,
+                for dtheta in np.arange(-params['range_dtheta_minor'],
+                                        params['range_dtheta_minor'] + 1,
                                         params['dtheta']):
                     dy_potentials = []
                     x, y, z = minor_pc
@@ -1392,7 +1459,7 @@ class OldPointGraspSampler(GraspSampler):
         params = {
             'num_rball_points': 27,  # FIXME: the same as meshpy..surface_normal()
             'num_dy': 0.3,
-            'range_dtheta': 0.30,
+            'range_dtheta_minor': 0.30,
             'max_chain_length': 20,
             'max_retry_times': 100
         }
@@ -1486,7 +1553,7 @@ class OldPointGraspSampler(GraspSampler):
             trial += 1
             dy = np.random.uniform(-params['num_dy'] * self.gripper.finger_width,
                                    (params['num_dy']) * self.gripper.finger_width)
-            dtheta = np.random.uniform(-params['range_dtheta'], params['range_dtheta'])
+            dtheta = np.random.uniform(-params['range_dtheta_minor'], params['range_dtheta_minor'])
 
             for tmp_normal_dir in [-1., 1.]:
                 # get new grasp sample from a chain
@@ -1556,7 +1623,7 @@ class GpgGraspSamplerPcl(GraspSampler):
             'num_rball_points': 27,  # FIXME: the same as meshpy..surface_normal()
             'num_dy': 10,  # number
             'dtheta': 10,  # unit degree
-            'range_dtheta': 90,
+            'range_dtheta_minor': 90,
             'debug_vis': False,
             'r_ball': self.gripper.hand_height,
             'approach_step': 0.005,
@@ -1651,8 +1718,8 @@ class GpgGraspSamplerPcl(GraspSampler):
 
                 # some magic number referred from origin paper
                 potential_grasp = []
-                for dtheta in np.arange(-params['range_dtheta'],
-                                        params['range_dtheta'] + 1,
+                for dtheta in np.arange(-params['range_dtheta_minor'],
+                                        params['range_dtheta_minor'] + 1,
                                         params['dtheta']):
                     dy_potentials = []
                     x, y, z = minor_pc
@@ -1823,7 +1890,7 @@ class GpgGraspSamplerPclPcd(GraspSampler):
             'num_rball_points': 27,  # FIXME: the same as meshpy..surface_normal()
             'num_dy': 3,  # number
             'dtheta': 5,  # unit degree
-            'range_dtheta': 30,
+            'range_dtheta_minor': 30,
             'debug_vis': False,
             'r_ball': self.gripper.hand_height,
             'approach_step': 0.005,
@@ -1923,7 +1990,7 @@ class GpgGraspSamplerPclPcd(GraspSampler):
                 # 采样点处抓取姿态调整
                 # some magic number referred from origin paper
                 potential_grasp = []
-                for dtheta in np.arange(-params['range_dtheta'], params['range_dtheta'] + 1, params['dtheta']):  # 调整角度
+                for dtheta in np.arange(-params['range_dtheta_minor'], params['range_dtheta_minor'] + 1, params['dtheta']):  # 调整角度
                     dy_potentials = []
                     x, y, z = minor_pc  # 次曲率
                     dtheta = np.float64(dtheta)

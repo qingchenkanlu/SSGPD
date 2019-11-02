@@ -57,7 +57,7 @@ def test_grasp_sample(target_num_grasps):
     # test quality
     force_closure_quality_config = {}
     canny_quality_config = {}
-    fc_list = [3.0, 2.0, 1.0, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05]
+    fc_list = [2.0, 1.5, 1.0, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05, 0.04, 0.03, 0.02, 0.01]
     good_count_perfect = np.zeros(len(fc_list))
     contacts_not_found_num = 0
     contacts_found_not_force_closure_num = 0
@@ -65,10 +65,10 @@ def test_grasp_sample(target_num_grasps):
         tmp, is_force_closure = False, False
         contacts_found, contacts = grasp.close_fingers(obj, vis=False)
         if not contacts_found:
-            ags.show_surface_points(obj)
-            ags.display_grasps3d([grasp], 'g')
-            ags.show()
-            # 未找到接触点, 跳过 FIXME:将这些抓取的摩擦系数设为无穷大 而服务
+            # ags.show_surface_points(obj)
+            # ags.display_grasps3d([grasp], 'g')
+            # ags.show()
+            # 未找到接触点, 跳过 FIXME:将这些抓取的摩擦系数设为无穷大
             contacts_not_found_num += 1
             continue
         print("good_count_perfect", good_count_perfect)
@@ -86,15 +86,15 @@ def test_grasp_sample(target_num_grasps):
                                                                     force_closure_quality_config[value_fc],
                                                                     contacts=contacts, vis=False)
 
-            print("[INFO] is_force_closure:", bool(is_force_closure), "value_fc:", value_fc, "tmp:", bool(tmp))
+            # print("[INFO] is_force_closure:", bool(is_force_closure), "value_fc:", value_fc, "tmp:", bool(tmp))
             if tmp and not is_force_closure:  # 前一个摩擦系数下为力闭合, 当前摩擦系数下非力闭合, 即找到此抓取对应的最小摩擦系数
-                print("[debug] tmp and not is_force_closure,value_fc:", value_fc, "ind_:", ind_)
+                # print("[debug] tmp and not is_force_closure,value_fc:", value_fc, "ind_:", ind_)
                 canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[
                     round(fc_list[ind_], 2)], vis=False)
                 good_count_perfect[ind_] += 1
 
-                # if np.isclose(value_fc, 0.1):
-                #     ags.show_surface_points(obj)
+                # if np.isclose(value_fc, 0.3):
+                #     # ags.show_surface_points(obj)
                 #     ags.display_grasps3d([grasp], 'g')
                 #     ags.show()
                 # else:
@@ -102,7 +102,7 @@ def test_grasp_sample(target_num_grasps):
 
                 break  # 找到即退出
             elif is_force_closure and np.isclose(value_fc, fc_list[-1]):  # 力闭合并且摩擦系数最小
-                print("[debug] is_force_closure and value_fc == fc_list[-1]")
+                # print("[debug] is_force_closure and value_fc == fc_list[-1]")
                 canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj,
                                                                   canny_quality_config[value_fc], vis=False)
                 good_count_perfect[ind_] += 1
