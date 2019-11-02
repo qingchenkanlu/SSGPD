@@ -52,12 +52,12 @@ def test_grasp_sample(target_num_grasps):
     else:
         # Test GpgGraspSampler
         ags = GpgGraspSampler(gripper, yaml_config)
-        grasps = ags.sample_grasps(obj, num_grasps=500, max_num_samples=5, vis=False)
+        grasps = ags.sample_grasps(obj, num_grasps=500, max_num_samples=15, vis=False)
 
     # test quality
     force_closure_quality_config = {}
     canny_quality_config = {}
-    fc_list = [0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05]
+    fc_list = [3.0, 2.0, 1.0, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05]
     good_count_perfect = np.zeros(len(fc_list))
     contacts_not_found_num = 0
     contacts_found_not_force_closure_num = 0
@@ -65,6 +65,9 @@ def test_grasp_sample(target_num_grasps):
         tmp, is_force_closure = False, False
         contacts_found, contacts = grasp.close_fingers(obj, vis=False)
         if not contacts_found:
+            ags.show_surface_points(obj)
+            ags.display_grasps3d([grasp], 'g')
+            ags.show()
             # 未找到接触点, 跳过 FIXME:将这些抓取的摩擦系数设为无穷大 而服务
             contacts_not_found_num += 1
             continue
@@ -127,7 +130,9 @@ def test_grasp_sample(target_num_grasps):
 
     # ags.show_surface_points(obj)
     # ags.show()
-    print("\n\nproccessed grasp num:", len(grasps))
+
+    print("\n\ngood_count_perfect", good_count_perfect)
+    print("proccessed grasp num:", len(grasps))
     print("good_count_perfect num:", int(good_count_perfect.sum()))
     print("contacts_not_found num:", contacts_not_found_num)
     print("contacts_found_not_force_closure num:", contacts_found_not_force_closure_num)

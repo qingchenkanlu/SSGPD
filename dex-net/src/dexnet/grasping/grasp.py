@@ -722,8 +722,8 @@ class ParallelJawPtGrasp3D(PointGrasp):
             coordinates to pass through in 3D space for contact checking
         """
         num_samples = max(num_samples, 3)  # always at least 3 samples
-        line_of_action = [g + t * axis for t in
-                          np.linspace(0, float(width) / 2 - float(min_width) / 2, num=num_samples)]
+        line_of_action = [g + t * axis for t in  # Note: change line length from width/2 to width
+                          np.linspace(0, float(width) - float(min_width), num=num_samples)]
         if convert_grid:
             as_array = np.array(line_of_action).T
             transformed = obj.sdf.transform_pt_obj_to_grid(as_array)
