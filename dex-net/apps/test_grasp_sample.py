@@ -52,16 +52,24 @@ def test_grasp_sample(target_num_grasps):
     else:
         # Test GpgGraspSampler
         ags = GpgGraspSampler(gripper, yaml_config)
-        grasps = ags.sample_grasps(obj, num_grasps=500, max_num_samples=15, vis=False)
+        grasps = ags.sample_grasps(obj, num_grasps=500, max_num_samples=5, vis=False)
 
     # test quality
     force_closure_quality_config = {}
     canny_quality_config = {}
     fc_list = [0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05]
     good_count_perfect = np.zeros(len(fc_list))
+    contacts_not_found_num = 0
+    contacts_found_not_force_closure_num = 0
     for grasp in grasps:
         tmp, is_force_closure = False, False
+        contacts_found, contacts = grasp.close_fingers(obj, vis=False)
+        if not contacts_found:
+            # 未找到接触点, 跳过 FIXME:将这些抓取的摩擦系数设为无穷大 而服务
+            contacts_not_found_num += 1
+            continue
         print("good_count_perfect", good_count_perfect)
+
         for ind_, value_fc in enumerate(fc_list):  # 为每个摩擦系数分配抓取姿态
             value_fc = round(value_fc, 2)
             tmp = is_force_closure
@@ -71,12 +79,9 @@ def test_grasp_sample(target_num_grasps):
             force_closure_quality_config[value_fc] = GraspQualityConfigFactory.create_config(yaml_config['metrics']['force_closure'])
             canny_quality_config[value_fc] = GraspQualityConfigFactory.create_config(yaml_config['metrics']['robust_ferrari_canny'])
 
-            is_force_closure, contacts_found = PointGraspMetrics3D.grasp_quality(grasp, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
-                                                                 force_closure_quality_config[value_fc], vis=False)
-
-            if not contacts_found:
-                # 未找到接触点, 直接退出不再判断低摩擦系数, FIXME:将这些抓取的摩擦系数设为无穷大
-                break
+            is_force_closure, _ = PointGraspMetrics3D.grasp_quality(grasp, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
+                                                                    force_closure_quality_config[value_fc],
+                                                                    contacts=contacts, vis=False)
 
             print("[INFO] is_force_closure:", bool(is_force_closure), "value_fc:", value_fc, "tmp:", bool(tmp))
             if tmp and not is_force_closure:  # 前一个摩擦系数下为力闭合, 当前摩擦系数下非力闭合, 即找到此抓取对应的最小摩擦系数
@@ -103,8 +108,9 @@ def test_grasp_sample(target_num_grasps):
 
                 break  # 找到即退出
 
-            if not is_force_closure and value_fc == fc_list[-1] and contacts_found:  # 判断结束还未找到对应摩擦系数,并且找到一对接触点
+            if not is_force_closure and np.isclose(value_fc, fc_list[-1]):  # 判断结束还未找到对应摩擦系数,并且找到一对接触点
                 print("判断结束还未找到对应摩擦系数,并且找到一对接触点")
+                contacts_found_not_force_closure_num += 1
 
             # if not contacts_found:
             #     ags.new_window(800)
@@ -117,12 +123,14 @@ def test_grasp_sample(target_num_grasps):
             #     PointGraspMetrics3D.grasp_quality(grasp, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
             #                                       force_closure_quality_config[value_fc], vis=False)
 
-
-                break
+                break  # 找到即退出
 
     # ags.show_surface_points(obj)
     # ags.show()
-
+    print("\n\nproccessed grasp num:", len(grasps))
+    print("good_count_perfect num:", int(good_count_perfect.sum()))
+    print("contacts_not_found num:", contacts_not_found_num)
+    print("contacts_found_not_force_closure num:", contacts_found_not_force_closure_num)
     return True
 
 

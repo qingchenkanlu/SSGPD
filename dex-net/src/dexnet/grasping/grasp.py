@@ -531,7 +531,7 @@ class ParallelJawPtGrasp3D(PointGrasp):
 
         return grasp_axis_angle, grasp_approach_angle, nu
 
-    def close_fingers(self, obj, vis=False, check_approach=True, approach_dist=1.0):
+    def close_fingers(self, obj, vis=False, check_approach=False, approach_dist=1.0):
         """ Steps along grasp axis to find the locations of contact with an object
 
         Parameters

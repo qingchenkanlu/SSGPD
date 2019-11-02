@@ -54,18 +54,20 @@ class PointGraspMetrics3D:
     """
 
     @staticmethod
-    def grasp_quality(grasp, obj, params, vis=False):
+    def grasp_quality(grasp, obj, params, contacts=None, vis=False):
         """
         Computes the quality of a two-finger point grasps on a given object using a quasi-static model.
 
         Parameters
         ----------
-        grasp : :obj:`ParallelJawPtGrasp3D`
+        grasp: `ParallelJawPtGrasp3D`
             grasp to evaluate
-        obj : :obj:`GraspableObject3D`
+        obj: `GraspableObject3D`
             object to evaluate quality on
-        params : :obj:`GraspQualityConfig`
+        params: `GraspQualityConfig`
             parameters of grasp quality function
+        contacts : 'Contact3D'
+            if it's not None will not find contacts use close_fingers
         """
         start = time.time()
         if not isinstance(grasp, PointGrasp):
@@ -84,14 +86,15 @@ class PointGraspMetrics3D:
         if not hasattr(PointGraspMetrics3D, method):
             raise ValueError('Illegal point grasp metric %s specified' % (method))
 
-        # get point grasp contacts
         contacts_start = time.time()
-        contacts_found, contacts = grasp.close_fingers(obj, check_approach=check_approach, vis=vis)
+        # not give contacts, close_fingers to find contacts
+        if contacts is None:
+            contacts_found, contacts = grasp.close_fingers(obj, check_approach=check_approach, vis=vis)
 
-        if not contacts_found:
-            logging.debug('Contacts not found')
-            print('Contacts not found')
-            return 0, contacts_found
+            if not contacts_found:
+                return 0, contacts_found
+        else:
+            contacts_found = True
 
         if method == 'force_closure':
             # Use fast force closure test if possible.
@@ -154,14 +157,6 @@ class PointGraspMetrics3D:
                 print("torque scaling", torque_scaling)
             params.torque_scaling = torque_scaling
 
-        # if vis:  # FIXME
-        #     ax = plt.gca()
-        #     ax.set_xlim3d(0, obj.sdf.dims_[0])
-        #     ax.set_ylim3d(0, obj.sdf.dims_[1])
-        #     ax.set_zlim3d(0, obj.sdf.dims_[2])
-        #     plt.show()
-        #     plt.savefig("qual.png")
-
         # evaluate the desired quality metric
         quality_start = time.time()
         Q_func = getattr(PointGraspMetrics3D, method)
@@ -170,10 +165,10 @@ class PointGraspMetrics3D:
                          params=params)
 
         end = time.time()
-        logging.debug('Contacts took %.3f sec' % (forces_start - contacts_start))
-        logging.debug('Forces took %.3f sec' % (quality_start - forces_start))
-        logging.debug('Quality eval took %.3f sec' % (end - quality_start))
-        logging.debug('Everything took %.3f sec' % (end - start))
+        logging.info('Contacts took %.3f sec' % (forces_start - contacts_start))
+        logging.info('Forces took %.3f sec' % (quality_start - forces_start))
+        logging.info('Quality eval took %.3f sec' % (end - quality_start))
+        logging.info('Everything took %.3f sec' % (end - start))
 
         return quality, contacts_found
 

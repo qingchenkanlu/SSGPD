@@ -741,7 +741,7 @@ class GpgGraspSampler(GraspSampler):
             'keepaway_step': 0.015,
             'max_trail_for_r_ball': 3000,
             'voxel_grid_ratio': 5,  # voxel_grid/sdf.resolution
-            'min_points_num': 100,
+            'min_points_num': 400,
         }
 
         # get all surface points
