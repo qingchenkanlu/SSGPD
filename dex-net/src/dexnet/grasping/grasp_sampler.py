@@ -759,38 +759,6 @@ class GpgGraspSampler(GraspSampler):
         processed_potential_grasp = []
         grasp_test = []
 
-        # # grasp_test.append([tmp_grasp_bottom_center, tmp_grasp_normal,
-        # #                    # [-0.00393718 -0.10461882  0.17252018]  [-0.18408447  0.98253861 -0.02703294]
-        # #                    tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
-        # grasp_te=([np.array([-0.00393718, -0.10461882,  0.17252018]), np.array([-0.18408447,  0.98253861, -0.02703294]),
-        #                    #  [-0.00393718 -0.10461882  0.17252018]  [-0.18408447  0.98253861 -0.02703294]
-        #                    np.array([-0.98289787, -0.18387343,  0.01011668]), np.array([0.00496939, 0.02843294, 0.99958335]),
-        #                    np.array([-0.00393718, -0.10461882,  0.17252018])])  # [-0.98289787 -0.18387343  0.01011668]  [0.00496939 0.02843294 0.99958335]
-        #
-        # for i in range(1):
-        #     # g = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(
-        #     #     # tmp_grasp_bottom_center + self.gripper.hand_depth*tmp_grasp_normal,
-        #     #     [-0.00393718, -0.10461882,  0.17252018],  #
-        #     #     [-0.98289787, -0.18387343,  0.01011668],  #
-        #     #     self.gripper.max_width, angle=10*i, normal=[-0.18408447,  0.98253861, -0.02703294], minor_pc=[0.00496939, 0.02843294, 0.99958335]), type='frame')  # 0.085
-        #     # print(g.unrotated_full_axis)
-        #     g = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(
-        #         # tmp_grasp_bottom_center + self.gripper.hand_depth*tmp_grasp_normal,
-        #         [-0.00393718, -0.10461882, 0.17252018],  #
-        #         [-0.98289787, -0.18387343, 0.01011668],  #
-        #         self.gripper.max_width, angle=10 * i))  # 0.085
-        #     print(g.unrotated_full_axis)
-        #     # self.show_points(np.array([-0.00393718, -0.10461882,  0.17252018]), 'r', 0.005)
-        #     # print(10*i)
-        #     # self.show_points(all_points)
-        #     # self.show_all_grasps([grasp_te])
-        #     # self.display_grasps3d([g], 'g')
-        #     # mlab.quiver3d(-0.00393718, -0.10461882, 0.17252018, -0.98289787, -0.18387343, 0.01011668,
-        #     #               scale_factor=.03, line_width=0.05, color=(1, 0, 0), mode='arrow')
-        #     # mlab.show()
-        #     pass
-
-
         hand_points = self.get_hand_points(np.array([0, 0, 0]), np.array([1, 0, 0]), np.array([0, 1, 0]))
         # get all grasps
         while len(grasps) < num_grasps and sampled_surface_amount < max_num_samples:
@@ -979,7 +947,7 @@ class GpgGraspSampler(GraspSampler):
             grasp_top_center = grasp_bottom_center + self.gripper.hand_depth * grasp_normal
             grasp3d = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(
                 grasp_top_center, major_pc, self.gripper.hand_outer_diameter-self.gripper.finger_width,
-                normal=grasp_normal, minor_pc=minor_pc), type='frame')
+                depth=self.gripper.hand_depth, normal=grasp_normal, minor_pc=minor_pc), type='frame')
             grasps.append(grasp3d)
 
         if vis:
@@ -990,7 +958,8 @@ class GpgGraspSampler(GraspSampler):
             self.display_grasps3d(grasps, 'g')
             mlab.show()
 
-        # return processed_potential_grasp
+        # return grasps
+        logger.info("generate grasps:%d", len(grasps))
         return grasps
 
 

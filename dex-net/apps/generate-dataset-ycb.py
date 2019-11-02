@@ -147,7 +147,7 @@ def worker(i, target_num_grasps, grasp_num_per_fc, good_grasp):
                         good_count_perfect[ind_ - 1] += 1
                         print("[debug] good_count_perfect[{}] += 1".format(ind_ - 1))
                     break
-                elif is_force_closure and value_fc == fc_list[-1]:  # 力闭合并且摩擦系数最小
+                elif is_force_closure and np.isclose(value_fc, fc_list[-1]):  # 力闭合并且摩擦系数最小
                     print("[debug] is_force_closure and value_fc == fc_list[-1]")
                     if good_count_perfect[ind_] < grasp_num_per_fc:
                         canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj,

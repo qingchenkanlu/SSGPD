@@ -20,6 +20,7 @@ def test_grasp_example():
         [-0.02845172, -0.03360422, 0.08925702],
         [-0.93863103, -0.34468021, -0.01293627],
         0.115,
+        depth=0.075,
         normal=[-0.34477207, 0.93866949, 0.00564044],
         minor_pc=[-0.01019873, -0.00975435, 0.99990041]), type='frame')
     is_force_closure, contacts_found = PointGraspMetrics3D.grasp_quality(grasp3d, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
@@ -51,12 +52,12 @@ def test_grasp_sample(target_num_grasps):
     else:
         # Test GpgGraspSampler
         ags = GpgGraspSampler(gripper, yaml_config)
-        grasps = ags.sample_grasps(obj, num_grasps=50, max_num_samples=5, vis=False)
+        grasps = ags.sample_grasps(obj, num_grasps=500, max_num_samples=15, vis=False)
 
     # test quality
     force_closure_quality_config = {}
     canny_quality_config = {}
-    fc_list = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05]
+    fc_list = [0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05]
     good_count_perfect = np.zeros(len(fc_list))
     for grasp in grasps:
         tmp, is_force_closure = False, False
@@ -73,35 +74,48 @@ def test_grasp_sample(target_num_grasps):
             is_force_closure, contacts_found = PointGraspMetrics3D.grasp_quality(grasp, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
                                                                  force_closure_quality_config[value_fc], vis=False)
 
+            if not contacts_found:
+                # 未找到接触点, 直接退出不再判断低摩擦系数, FIXME:将这些抓取的摩擦系数设为无穷大
+                break
+
             print("[INFO] is_force_closure:", bool(is_force_closure), "value_fc:", value_fc, "tmp:", bool(tmp))
             if tmp and not is_force_closure:  # 前一个摩擦系数下为力闭合, 当前摩擦系数下非力闭合, 即找到此抓取对应的最小摩擦系数
                 print("[debug] tmp and not is_force_closure,value_fc:", value_fc, "ind_:", ind_)
                 canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[
-                    round(fc_list[ind_ - 1], 2)], vis=False)
-                good_count_perfect[ind_ - 1] += 1
-                # if value_fc < 0.45:
+                    round(fc_list[ind_], 2)], vis=False)
+                good_count_perfect[ind_] += 1
+
+                # if np.isclose(value_fc, 0.1):
+                #     ags.show_surface_points(obj)
                 #     ags.display_grasps3d([grasp], 'g')
+                #     ags.show()
                 # else:
                 #     ags.display_grasps3d([grasp], 'r')
-                # break
-            elif is_force_closure and value_fc == fc_list[-1]:  # 力闭合并且摩擦系数最小
+
+                break  # 找到即退出
+            elif is_force_closure and np.isclose(value_fc, fc_list[-1]):  # 力闭合并且摩擦系数最小
                 print("[debug] is_force_closure and value_fc == fc_list[-1]")
                 canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj,
                                                                   canny_quality_config[value_fc], vis=False)
                 good_count_perfect[ind_] += 1
+
                 # ags.display_grasps3d([grasp], 'b')
-                break
 
-            if not contacts_found:
-                ags.new_window(800)
-                ags.show_surface_points(obj)
-                ags.display_grasps3d([grasp], 'r')
-                ags.show_points(np.array(grasp.center), color='r', scale_factor=0.005)
-                ags.show_points(np.array(grasp.endpoints), color='b', scale_factor=0.005)
-                ags.show()
+                break  # 找到即退出
 
-                PointGraspMetrics3D.grasp_quality(grasp, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
-                                                  force_closure_quality_config[value_fc], vis=True)
+            if not is_force_closure and value_fc == fc_list[-1] and contacts_found:  # 判断结束还未找到对应摩擦系数,并且找到一对接触点
+                print("判断结束还未找到对应摩擦系数,并且找到一对接触点")
+
+            # if not contacts_found:
+            #     ags.new_window(800)
+            #     ags.show_surface_points(obj)
+            #     ags.display_grasps3d([grasp], 'r')
+            #     ags.show_points(np.array(grasp.center), color='r', scale_factor=0.005)
+            #     ags.show_points(np.array(grasp.endpoints), color='b', scale_factor=0.005)
+            #     ags.show()
+            #
+            #     PointGraspMetrics3D.grasp_quality(grasp, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
+            #                                       force_closure_quality_config[value_fc], vis=False)
 
 
                 break
