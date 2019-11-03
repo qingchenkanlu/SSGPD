@@ -2,20 +2,26 @@
 from abc import ABCMeta, abstractmethod
 import copy
 import logging
+import coloredlogs
 import matplotlib.pyplot as plt
 import numpy as np
 import random
 import time
+import scipy
 import scipy.stats as stats
 import pcl
 import dexnet
 
-from dexnet.grasping import Grasp, Contact3D, ParallelJawPtGrasp3D, PointGraspMetrics3D  # , GraspableObject3D
 from autolab_core import RigidTransform
-import scipy
+from dexnet.grasping import Grasp, Contact3D, ParallelJawPtGrasp3D, PointGraspMetrics3D
+
+
 # create logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+# Initialize coloredlogs.
+coloredlogs.install(level='INFO')
+# logger.setLevel(logging.INFO)
+
 
 try:
     import mayavi.mlab as mlab
@@ -211,17 +217,25 @@ class GraspSampler:
         logger.info('Found %d grasps.', len(grasps))
         return grasps
 
-    def show_points(self, point, color='lb', scale_factor=.0005):
+    def get_color(self, color):
         if color == 'b':
             color_f = (0, 0, 1)
         elif color == 'r':
             color_f = (1, 0, 0)
         elif color == 'g':
             color_f = (0, 1, 0)
+        elif color == 'y':  # yellow
+            color_f = (1, 1, 0)
+        elif color == 'p':  # purple
+            color_f = (1, 0, 1)
         elif color == 'lb':  # light blue
             color_f = (0.22, 1, 1)
         else:
             color_f = (1, 1, 1)
+        return color_f
+
+    def show_points(self, point, color='lb', scale_factor=.0005):
+        color_f = self.get_color(color)
         if point.size == 3:  # vis for only one point, shape must be (3,), for shape (1, 3) is not work
             point = point.reshape(3, )
             mlab.points3d(point[0], point[1], point[2], color=color_f, scale_factor=scale_factor)
@@ -229,27 +243,11 @@ class GraspSampler:
             mlab.points3d(point[:, 0], point[:, 1], point[:, 2], color=color_f, scale_factor=scale_factor)
 
     def show_line(self, un1, un2, color='g', scale_factor=0.0005):
-        if color == 'b':
-            color_f = (0, 0, 1)
-        elif color == 'r':
-            color_f = (1, 0, 0)
-        elif color == 'g':
-            color_f = (0, 1, 0)
-        else:
-            color_f = (1, 1, 1)
+        color_f = self.get_color(color)
         mlab.plot3d([un1[0], un2[0]], [un1[1], un2[1]], [un1[2], un2[2]], color=color_f, tube_radius=scale_factor)
 
     def show_arrow(self, point, direction, color='lb'):
-        if color == 'b':
-            color_f = (0, 0, 1)
-        elif color == 'r':
-            color_f = (1, 0, 0)
-        elif color == 'g':
-            color_f = (0, 1, 0)
-        elif color == 'lb':  # light blue
-            color_f = (0.22, 1, 1)
-        else:
-            color_f = (1, 1, 1)
+        color_f = self.get_color(color)
         mlab.quiver3d(point[0], point[1], point[2], direction[0], direction[1], direction[2],
                       scale_factor=.03, line_width=0.05, color=color_f, mode='arrow')
 
@@ -324,7 +322,7 @@ class GraspSampler:
                      (15, 11, 17), (15, 17, 18), (6, 7, 8), (6, 8, 5)]
         # mlab.points3d(hand_points[:, 0], hand_points[:, 1], hand_points[:, 2], color=(0, 0, 1), scale_factor=0.005)
         mlab.triangular_mesh(hand_points[:, 0], hand_points[:, 1], hand_points[:, 2],
-                             triangles, color=color, opacity=0.8)
+                             triangles, color=color, opacity=0.6)
 
     def check_collision_square(self, grasp_bottom_center, approach_normal, binormal,
                                minor_pc, graspable, p, way, vis=False):
@@ -735,7 +733,7 @@ class GpgGraspSampler(GraspSampler):
             'voxel_grid_ratio': 5,  # voxel_grid/sdf.resolution
 
             'num_dy': 5,  # number 10
-            'num_dz': 5,  # number 5
+            'num_dz': 1,  # number 5
             'dtheta': 5,  # unit degree 5
             'range_dtheta_normal': 45,
             'range_dtheta_minor': 30,
@@ -744,6 +742,9 @@ class GpgGraspSampler(GraspSampler):
             'keepaway_step': 0.015,
             'min_points_num': 200,
         }
+
+        # start the time
+        start = time.perf_counter()
 
         # get all surface points
         surface_points, _ = graspable.sdf.surface_points(grid_basis=False)
@@ -839,7 +840,7 @@ class GpgGraspSampler(GraspSampler):
                             #                        tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
 
                 if len(dy_potentials) != 0:
-                    # FIXME: we only take the middle grasp from dy direction.
+                    # Note: we only take the middle grasp from dy direction.
                     potential_grasp.append(dy_potentials[int(np.ceil(len(dy_potentials) / 2) - 1)])
 
             """ Step3: rotat grasp around an axis(major_pc:green) """
@@ -849,8 +850,8 @@ class GpgGraspSampler(GraspSampler):
                 rotation = RigidTransform.rotation_from_quaternion(np.array([dtheta / 180 * np.pi, x, y, z]))
 
                 """ Step2: move step by step according to minor_pc """
-                for dz in np.arange(-params['num_dz'] * self.gripper.finger_width,
-                                    (params['num_dz'] + 1) * self.gripper.finger_width, self.gripper.finger_width):
+                for dz in np.arange(-params['num_dz'] * self.gripper.hand_height,
+                                    (params['num_dz'] + 1) * self.gripper.hand_height, self.gripper.hand_height):
                     # compute centers and axes
                     tmp_minor_pc = np.dot(rotation, minor_pc)
                     tmp_grasp_normal = np.dot(rotation, new_normal)
@@ -884,11 +885,12 @@ class GpgGraspSampler(GraspSampler):
                         if left_points is False and right_points is False:
                             dz_potentials.append([tmp_grasp_bottom_center, tmp_grasp_normal, major_pc,
                                                   tmp_minor_pc, tmp_grasp_bottom_center])
-                            # potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal, major_pc,
-                            #                         minor_pc, tmp_grasp_bottom_center])
+                            # Note: take all grasp from dz direction.
+                            potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal, major_pc,
+                                                    tmp_minor_pc, tmp_grasp_bottom_center])
 
                 if len(dz_potentials) != 0:
-                    # FIXME: we only take the middle grasp from dy direction.
+                    # Note: only take the middle grasp from dz direction.
                     potential_grasp.append(dz_potentials[int(np.ceil(len(dz_potentials) / 2) - 1)])
 
             """ Step4: rotat grasp around an axis(normal:red) """
@@ -1026,7 +1028,7 @@ class GpgGraspSampler(GraspSampler):
             mlab.show()
 
         # return grasps
-        logger.info("generate grasps:%d", len(grasps))
+        logger.info("generate %d grasps, took %.2f s", len(grasps), time.perf_counter()-start)
         return grasps
 
 

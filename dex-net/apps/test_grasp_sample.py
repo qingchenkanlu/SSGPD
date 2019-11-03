@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Author: sdhm
+# Author: MrRen-sdhm
 
+import os
+import time
+import logging
+import coloredlogs
 import numpy as np
 from dexnet.grasping.quality import PointGraspMetrics3D
 from dexnet.grasping import ParallelJawPtGrasp3D, AntipodalGraspSampler, GpgGraspSampler
@@ -9,7 +13,10 @@ from dexnet.grasping import RobotGripper, GraspableObject3D, GraspQualityConfigF
 from autolab_core import YamlConfig
 from meshpy.obj_file import ObjFile
 from meshpy.sdf_file import SdfFile
-import os
+from utils.grasps_save_read import grasps_save, grasps_read
+
+logger = logging.getLogger(__name__)
+coloredlogs.install(level='INFO')
 
 
 def test_grasp_example():
@@ -23,6 +30,7 @@ def test_grasp_example():
         depth=0.075,
         normal=[-0.34477207, 0.93866949, 0.00564044],
         minor_pc=[-0.01019873, -0.00975435, 0.99990041]), type='frame')
+
     is_force_closure, contacts_found = PointGraspMetrics3D.grasp_quality(grasp3d, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
                                                                          force_closure_quality_config,
                                                                          vis=False)
@@ -52,16 +60,27 @@ def test_grasp_sample(target_num_grasps):
     else:
         # Test GpgGraspSampler
         ags = GpgGraspSampler(gripper, yaml_config)
-        grasps = ags.sample_grasps(obj, num_grasps=500, max_num_samples=15, vis=False)
+        grasps = ags.sample_grasps(obj, num_grasps=500, max_num_samples=10, vis=False)
 
+    """ load grasp from file """
+    # grasps = grasps_read('/home/sdhm/grasps/13.pickle')
+    # ags.display_grasps3d(grasps, 'g')
+    # ags.show_surface_points(obj)
+    # ags.show()
+
+    mark = 0
+    # start the time
+    start = time.perf_counter()
     # test quality
     force_closure_quality_config = {}
     canny_quality_config = {}
-    fc_list = [2.0, 1.5, 1.0, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05, 0.04, 0.03, 0.02, 0.01]
+    fc_list = [2.0, 1.5, 1.0, 0.8, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
     good_count_perfect = np.zeros(len(fc_list))
     contacts_not_found_num = 0
     contacts_found_not_force_closure_num = 0
+    proccessed_num = 0
     for grasp in grasps:
+        proccessed_num += 1
         tmp, is_force_closure = False, False
         contacts_found, contacts = grasp.close_fingers(obj, vis=False)
         if not contacts_found:
@@ -71,7 +90,7 @@ def test_grasp_sample(target_num_grasps):
             # 未找到接触点, 跳过 FIXME:将这些抓取的摩擦系数设为无穷大
             contacts_not_found_num += 1
             continue
-        print("good_count_perfect", good_count_perfect)
+        print("good_count_perfect[%d]" % proccessed_num, good_count_perfect)
 
         for ind_, value_fc in enumerate(fc_list):  # 为每个摩擦系数分配抓取姿态
             value_fc = round(value_fc, 2)
@@ -88,32 +107,37 @@ def test_grasp_sample(target_num_grasps):
 
             # print("[INFO] is_force_closure:", bool(is_force_closure), "value_fc:", value_fc, "tmp:", bool(tmp))
             if tmp and not is_force_closure:  # 前一个摩擦系数下为力闭合, 当前摩擦系数下非力闭合, 即找到此抓取对应的最小摩擦系数
-                # print("[debug] tmp and not is_force_closure,value_fc:", value_fc, "ind_:", ind_)
-                canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[
-                    round(fc_list[ind_], 2)], vis=False)
-                good_count_perfect[ind_] += 1
+                # print("[DEBUG] tmp and not is_force_closure,value_fc:", value_fc, "ind_:", ind_)
+                # canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[round(fc_list[ind_-1], 2)], vis=False)
+                good_count_perfect[ind_-1] += 1  # 前一个摩擦系数最小
 
-                # if np.isclose(value_fc, 0.3):
+                # if np.isclose(value_fc, 0.2):
                 #     # ags.show_surface_points(obj)
                 #     ags.display_grasps3d([grasp], 'g')
+
                 #     ags.show()
-                # else:
-                #     ags.display_grasps3d([grasp], 'r')
 
                 break  # 找到即退出
             elif is_force_closure and np.isclose(value_fc, fc_list[-1]):  # 力闭合并且摩擦系数最小
-                # print("[debug] is_force_closure and value_fc == fc_list[-1]")
-                canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj,
-                                                                  canny_quality_config[value_fc], vis=False)
-                good_count_perfect[ind_] += 1
+                # print("[DEBUG] is_force_closure and value_fc == fc_list[-1]")
+                # canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[value_fc], vis=False)
+                good_count_perfect[ind_] += 1  # 已无更小摩擦系数, 此系数最小
 
                 # ags.display_grasps3d([grasp], 'b')
 
                 break  # 找到即退出
 
             if not is_force_closure and np.isclose(value_fc, fc_list[-1]):  # 判断结束还未找到对应摩擦系数,并且找到一对接触点
-                print("判断结束还未找到对应摩擦系数,并且找到一对接触点")
+                print("[DEBUG] is_force_closure but contacts_found")
                 contacts_found_not_force_closure_num += 1
+
+                # grasps_save(grasp, "/home/sdhm/grasps/%s" % str(mark))
+                # print("[DEBUG] save grasp to %s.pickle" % str(mark))
+                # mark += 1
+
+                ags.display_grasps3d([grasp], 'g')
+                # ags.show_surface_points(obj, color='r')
+                # ags.show()
 
             # if not contacts_found:
             #     ags.new_window(800)
@@ -128,14 +152,15 @@ def test_grasp_sample(target_num_grasps):
 
                 break  # 找到即退出
 
-    # ags.show_surface_points(obj)
-    # ags.show()
-
     print("\n\ngood_count_perfect", good_count_perfect)
     print("proccessed grasp num:", len(grasps))
     print("good_count_perfect num:", int(good_count_perfect.sum()))
     print("contacts_not_found num:", contacts_not_found_num)
     print("contacts_found_not_force_closure num:", contacts_found_not_force_closure_num)
+    print("classify took {:.2f} s".format(time.perf_counter()-start))
+
+    ags.show_surface_points(obj, color='r')
+    ags.show()
     return True
 
 
@@ -156,4 +181,5 @@ if __name__ == '__main__':
     sdf = sf.read()
     obj = GraspableObject3D(sdf, mesh)
 
+    # test_grasp_example()
     test_grasp_sample(20)

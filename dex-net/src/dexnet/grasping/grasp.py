@@ -1,31 +1,9 @@
 # -*- coding: utf-8 -*-
-# """
-# Copyright ©2017. The Regents of the University of California (Regents). All Rights Reserved.
-# Permission to use, copy, modify, and distribute this software and its documentation for educational,
-# research, and not-for-profit purposes, without fee and without a signed licensing agreement, is
-# hereby granted, provided that the above copyright notice, this paragraph and the following two
-# paragraphs appear in all copies, modifications, and distributions. Contact The Office of Technology
-# Licensing, UC Berkeley, 2150 Shattuck Avenue, Suite 510, Berkeley, CA 94720-1620, (510) 643-
-# 7201, otl@berkeley.edu, http://ipira.berkeley.edu/industry-info for commercial licensing opportunities.
-#
-# IN NO EVENT SHALL REGENTS BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL,
-# INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF
-# THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF REGENTS HAS BEEN
-# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# REGENTS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
-# HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
-# MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-# """
-# """
-# Grasp class that implements gripper endpoints and grasp functions
-# Authors: Jeff Mahler, with contributions from Jacky Liang and Nikhil Sharma
-# """
+
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
 import logging
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.linalg import inv, norm
@@ -98,6 +76,10 @@ class Grasp(object):
             color_f = (1, 0, 0)
         elif color == 'g':
             color_f = (0, 1, 0)
+        elif color == 'y':  # yellow
+            color_f = (1, 1, 0)
+        elif color == 'p':  # purple
+            color_f = (1, 0, 1)
         elif color == 'lb':  # light blue
             color_f = (0.22, 1, 1)
         else:
@@ -115,6 +97,10 @@ class Grasp(object):
             color_f = (1, 0, 0)
         elif color == 'g':
             color_f = (0, 1, 0)
+        elif color == 'y':  # yellow
+            color_f = (1, 1, 0)
+        elif color == 'p':  # purple
+            color_f = (1, 0, 1)
         elif color == 'lb':  # light blue
             color_f = (0.22, 1, 1)
         else:
@@ -554,10 +540,12 @@ class ParallelJawPtGrasp3D(PointGrasp):
         c2 : :obj:`Contact3D`
             the contact point for jaw 2
         """
+
+        start = time.perf_counter()
         # compute num samples to use based on sdf resolution
         grasp_width_grid = obj.sdf.transform_pt_obj_to_grid(self.max_grasp_width_)
         num_samples = int(Grasp.samples_per_grid * float(grasp_width_grid) / 2)  # at least 1 sample per grid
-        num_samples_depth = int(num_samples/2)
+        num_samples_depth = int(num_samples/3)
 
         # get grasp endpoints in sdf frame
         g1_world, g2_world = self.endpoints
@@ -574,6 +562,9 @@ class ParallelJawPtGrasp3D(PointGrasp):
             self.show_points(np.array(g2_world_list), color='g', scale_factor=0.001)
             mlab.show()
 
+        start_contact_flag = False
+        update_time_flag = True
+        contacts_list = []
         for i in range(num_samples_depth):
             g1_world = g1_world_list[i]
             g2_world = g2_world_list[i]
@@ -591,7 +582,6 @@ class ParallelJawPtGrasp3D(PointGrasp):
                 c2_found, _ = ParallelJawPtGrasp3D.find_contact(approach_loa2, obj, vis=vis, strict=True)
                 approach_collision = c1_found or c2_found
                 if approach_collision:
-                    plt.clf()
                     return False, None
 
             # get line of action
@@ -607,26 +597,55 @@ class ParallelJawPtGrasp3D(PointGrasp):
             contacts_found = c1_found and c2_found
 
             if contacts_found:
-                if vis:
-                    line_of_action1_ = ParallelJawPtGrasp3D.create_line_of_action(g1_world, self.axis_, self.open_width,
-                                                                                  obj, num_samples, min_width=self.close_width,
-                                                                                  convert_grid=False)
-                    line_of_action2_ = ParallelJawPtGrasp3D.create_line_of_action(g2_world, -self.axis_, self.open_width,
-                                                                                  obj, num_samples, min_width=self.close_width,
-                                                                                  convert_grid=False)
+                start_contact_flag = True  # find the first pair of contacts
+                contacts_list.append([c1, c2])
 
-                    self.show_points(np.array(line_of_action1_), 'r', 0.001)
-                    self.show_points(np.array(line_of_action2_), 'g', 0.001)
+                # if update_time_flag:
+                #     start_contact = time.perf_counter()
+                #     update_time_flag = False
+
+                if vis:
+                    # line_of_action1_ = ParallelJawPtGrasp3D.create_line_of_action(g1_world, self.axis_, self.open_width,
+                    #                                                               obj, num_samples, min_width=self.close_width,
+                    #                                                               convert_grid=False)
+                    # line_of_action2_ = ParallelJawPtGrasp3D.create_line_of_action(g2_world, -self.axis_, self.open_width,
+                    #                                                               obj, num_samples, min_width=self.close_width,
+                    #                                                               convert_grid=False)
+
+                    # self.show_points(np.array(line_of_action1_), 'r', 0.001)
+                    # self.show_points(np.array(line_of_action2_), 'g', 0.001)
                     self.show_points(np.array(g1_world_list), color='g', scale_factor=0.001)
                     self.show_points(np.array(g2_world_list), color='g', scale_factor=0.001)
                     self.show_surface_points(obj)
-                    self.show_arrow(c1.point, c1.in_direction, 'r')
-                    self.show_arrow(c2.point, c2.in_direction, 'g')
-                    self.show_points(np.array([g1_world, g2_world]), color='r', scale_factor=0.005)
+                    self.show_arrow(c1.point, c1.in_direction, 'r', scale_factor=0.02)
+                    self.show_arrow(c2.point, c2.in_direction, 'g', scale_factor=0.02)
+
+            if (start_contact_flag and not contacts_found) or (start_contact_flag and i == num_samples_depth):  # find the end contacts
+                if len(contacts_list) < 2:  # too few contacts
+                    logging.error("too few contacts")
+                    return False, [None, None]
+
+                # find the pair of contacts which have max distance
+                dist_list = []
+                for c1, c2 in contacts_list:
+                    dist_list.append(np.linalg.norm(c1.point-c2.point))  # cal the distance
+                max_index = dist_list.index(max(dist_list))  # cal the max distance's index
+
+                if vis:
+                    self.show_points(np.array([g1_world, g2_world]), color='g', scale_factor=0.005)
+                    self.show_points(np.array([contacts_list[max_index][0].point, contacts_list[max_index][1].point]),
+                                     color='b', scale_factor=0.008)
+                    normal1 = obj.sdf.surface_normal(obj.sdf.transform_pt_obj_to_grid(contacts_list[max_index][0].point))
+                    normal2 = obj.sdf.surface_normal(obj.sdf.transform_pt_obj_to_grid(contacts_list[max_index][1].point))
+                    self.show_arrow(contacts_list[max_index][0].point, normal1, 'y', scale_factor=0.02)
+                    self.show_arrow(contacts_list[max_index][1].point, normal2, 'y', scale_factor=0.02)
                     mlab.show()
 
-                return contacts_found, [c1, c2]
+                # logging.info("find first contact took %.2f" % (start_contact - start))
+                logging.info("close finger took %.2f" % (time.perf_counter()-start))
+                return True, contacts_list[max_index]
 
+        logging.error("not found contacts")
         return False, [None, None]
 
     def vis_grasp(self, obj, *args, **kwargs):
