@@ -622,7 +622,7 @@ class ParallelJawPtGrasp3D(PointGrasp):
 
             if (start_contact_flag and not contacts_found) or (start_contact_flag and i == num_samples_depth):  # find the end contacts
                 if len(contacts_list) < 2:  # too few contacts
-                    logging.error("too few contacts")
+                    logging.debug("too few contacts")
                     return False, [None, None]
 
                 # find the pair of contacts which have max distance
@@ -642,10 +642,10 @@ class ParallelJawPtGrasp3D(PointGrasp):
                     mlab.show()
 
                 # logging.info("find first contact took %.2f" % (start_contact - start))
-                logging.info("close finger took %.2f" % (time.perf_counter()-start))
+                logging.debug("close finger took %.2f" % (time.perf_counter()-start))
                 return True, contacts_list[max_index]
 
-        logging.error("not found contacts")
+        logging.debug("not found contacts")
         return False, [None, None]
 
     def vis_grasp(self, obj, *args, **kwargs):

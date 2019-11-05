@@ -16,7 +16,10 @@ def grasps_save(grasps, filename):
 
 def grasps_read(filename):
     grasps = pickle.load(open(filename, 'rb'))
-    return np.array([grasps])
+    if isinstance(grasps, list):
+        return grasps
+    else:
+        return [grasps]
 
 
 if __name__ == '__main__':

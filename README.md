@@ -1,13 +1,26 @@
 # **grasp_pose_detector_pointnet**
 
+#### 问题汇总：
+
+- [x] ##### 优化接触点查找
+
+- [ ] ##### 使用tsdf-fusion获得的mesh文件转换为sdf之后，法线方向不准确
+
+  方案1：直接从tsdf转换为sdf（优先）
+
+  方案2：舍弃sdf，直接使用点云处理
+
+
+
 ### Before Install
+
 All the code should be installed in the following directory:
 ```
 mkdir -p $HOME/code/
 cd $HOME/code/
 ```
 ### Install all the requirements (Using a virtual environment is recommended)
-1. Make sure in your Python environment do not have same package named ```meshpy``` or ```dexnet```.
+1. Make sure in your Python3 environment do not have same package named ```meshpy``` or ```dexnet```.
 
 1. Clone this repository:
     ```bash

@@ -53,6 +53,7 @@ def test_grasp_sample(target_num_grasps):
     """
     :param target_num_grasps: 抓取姿态生成器每次的目标生成抓取姿态数
     """
+    reload = False
     if False:
         # Test AntipodalGraspSampler
         ags = AntipodalGraspSampler(gripper, yaml_config)
@@ -60,13 +61,16 @@ def test_grasp_sample(target_num_grasps):
     else:
         # Test GpgGraspSampler
         ags = GpgGraspSampler(gripper, yaml_config)
-        grasps = ags.sample_grasps(obj, num_grasps=500, max_num_samples=10, vis=False)
+        if not reload:
+            grasps = ags.sample_grasps(obj, num_grasps=2000, max_num_samples=20, filter_z=True, vis=False)
 
     """ load grasp from file """
-    # grasps = grasps_read('/home/sdhm/grasps/13.pickle')
-    # ags.display_grasps3d(grasps, 'g')
-    # ags.show_surface_points(obj)
-    # ags.show()
+    if reload:
+        grasps = grasps_read('/home/sdhm/grasps/all.pickle')
+        pass
+        ags.display_grasps3d(grasps, 'lb')
+        ags.show_surface_points(obj, 'r')
+        ags.show()
 
     mark = 0
     # start the time
@@ -74,7 +78,7 @@ def test_grasp_sample(target_num_grasps):
     # test quality
     force_closure_quality_config = {}
     canny_quality_config = {}
-    fc_list = [2.0, 1.5, 1.0, 0.8, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
+    fc_list = [2.0, 1.7, 1.4, 1.1, 0.8, 0.5, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
     good_count_perfect = np.zeros(len(fc_list))
     contacts_not_found_num = 0
     contacts_found_not_force_closure_num = 0
@@ -90,7 +94,7 @@ def test_grasp_sample(target_num_grasps):
             # 未找到接触点, 跳过 FIXME:将这些抓取的摩擦系数设为无穷大
             contacts_not_found_num += 1
             continue
-        print("good_count_perfect[%d]" % proccessed_num, good_count_perfect)
+        print("good_count_perfect[%d/%d]" % (proccessed_num, len(grasps)), good_count_perfect)
 
         for ind_, value_fc in enumerate(fc_list):  # 为每个摩擦系数分配抓取姿态
             value_fc = round(value_fc, 2)
@@ -159,6 +163,8 @@ def test_grasp_sample(target_num_grasps):
     print("contacts_found_not_force_closure num:", contacts_found_not_force_closure_num)
     print("classify took {:.2f} s".format(time.perf_counter()-start))
 
+    grasps_save(grasps, "/home/sdhm/grasps/all")
+
     ags.show_surface_points(obj, color='r')
     ags.show()
     return True
@@ -166,7 +172,7 @@ def test_grasp_sample(target_num_grasps):
 
 if __name__ == '__main__':
     home_dir = os.environ['HOME']
-    file_dir = home_dir + "/Projects/GPD_PointNet/dataset/ycb_meshes_google/003_cracker_box/google_512k"
+    file_dir = home_dir + "/Projects/GPD_PointNet/dataset/ycb_meshes_google/caterpillar"
     yaml_config = YamlConfig(home_dir + "/Projects/GPD_PointNet/dex-net/test/config.yaml")
     gripper = RobotGripper.load('robotiq_85', home_dir + "/Projects/GPD_PointNet/dex-net/data/grippers")
 

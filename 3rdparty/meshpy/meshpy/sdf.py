@@ -227,7 +227,7 @@ class Sdf3D(Sdf):
         self.dims_ = self.data_.shape
 
         # set up surface params
-        self.surface_thresh_ = self.resolution_ * np.sqrt(2) / 2
+        self.surface_thresh_ = self.resolution_ * np.sqrt(2) / 16
         self.surface_points_ = None
         self.surface_points_w_ = None
         self.surface_vals_ = None

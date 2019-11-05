@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # Author     : Hongzhuo Liang
 # E-mail     : liang@informatik.uni-hamburg.de

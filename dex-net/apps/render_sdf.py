@@ -7,6 +7,7 @@ import pylab as plt
 from meshpy.sdf_file import SdfFile
 from meshpy.obj_file import ObjFile
 from dexnet.grasping import GraspableObject3D
+from dexnet.visualization import MayaviVisualizer3D
 
 
 class SDF(object):
@@ -100,6 +101,13 @@ def render_sdf(obj_, object_name_):
     plt.show()
 
 
+def show_sdf(obj_):
+    surface_points = obj_.sdf.surface_points()[0]
+    mv = MayaviVisualizer3D()
+    mv.show_points(surface_points, color='r', scale_factor=.5)
+    mv.show()
+
+
 if __name__ == '__main__':
     home_dir = os.environ['HOME']
     file_dir = home_dir + "/Projects/GPD_PointNet/dataset/ycb_meshes_google/003_cracker_box"
@@ -108,11 +116,14 @@ if __name__ == '__main__':
     # of = ObjFile(file_dir + "/google_512k/nontextured.obj")
     sf = SdfFile("/home/sdhm/test/mesh_ascii.sdf")
     of = ObjFile("/home/sdhm/test/mesh_ascii.obj")
+    # sf = SdfFile("/home/sdhm/test/tsdf.sdf")
+    # of = ObjFile("/home/sdhm/test/tsdf.obj")
 
     mesh = of.read()
     sdf = sf.read()
     obj = GraspableObject3D(sdf, mesh)
-    render_sdf(obj, "003_cracker_box")
+    # render_sdf(obj, "003_cracker_box")
+    show_sdf(obj)
 
     # obj_files = get_file_name(file_dir)
     # print(obj_files)

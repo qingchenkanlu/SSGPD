@@ -234,7 +234,7 @@ class GraspSampler:
             color_f = (1, 1, 1)
         return color_f
 
-    def show_points(self, point, color='lb', scale_factor=.0005):
+    def show_points(self, point, color='lb', scale_factor=.002):
         color_f = self.get_color(color)
         if point.size == 3:  # vis for only one point, shape must be (3,), for shape (1, 3) is not work
             point = point.reshape(3, )
@@ -395,9 +395,9 @@ class GraspSampler:
             hand_points = self.get_hand_points(grasp_bottom_center, approach_normal, binormal)
             self.show_grasp_3d(hand_points)
 
-    def show_surface_points(self, graspable, color='lb'):
+    def show_surface_points(self, graspable, color='lb', scale_factor=.002):
         surface_points, _ = graspable.sdf.surface_points(grid_basis=False)
-        self.show_points(surface_points, color=color)
+        self.show_points(surface_points, color=color, scale_factor=scale_factor)
 
     def check_collide(self, grasp_bottom_center, approach_normal, binormal, minor_pc, graspable, hand_points):
         bottom_points = self.check_collision_square(grasp_bottom_center, approach_normal,
@@ -708,7 +708,7 @@ class GpgGraspSampler(GraspSampler):
     http://journals.sagepub.com/doi/10.1177/0278364917735594
     """
 
-    def sample_grasps(self, graspable, num_grasps, vis=False, max_num_samples=30, **kwargs):
+    def sample_grasps(self, graspable, num_grasps, filter_z=False, vis=False, max_num_samples=30, **kwargs):
         """
         Returns a list of candidate grasps for graspable object using uniform point pairs from the SDF
 
@@ -718,6 +718,8 @@ class GpgGraspSampler(GraspSampler):
             the object to grasp
         num_grasps : int
             the number of grasps to generate
+        filter_z : bool
+            filter surface points by z axis, only sample the points which z>0
         vis :
         max_num_samples :
 
@@ -728,7 +730,7 @@ class GpgGraspSampler(GraspSampler):
         """
         params = {
             'num_rball_points': 27,  # same as meshpy..surface_normal()
-            'r_ball': self.gripper.hand_height,
+            'r_ball': self.gripper.hand_height/2,
             'max_trail_for_r_ball': 3000,
             'voxel_grid_ratio': 5,  # voxel_grid/sdf.resolution
 
@@ -749,6 +751,12 @@ class GpgGraspSampler(GraspSampler):
         # get all surface points
         surface_points, _ = graspable.sdf.surface_points(grid_basis=False)
         all_points = surface_points
+
+        # filter points by axis z
+        if filter_z:
+            selected_indices = np.where(surface_points[:, 2] > 0)[0]
+            surface_points = surface_points[selected_indices]
+
         # construct pynt point cloud and voxel grid
         p_cloud = pcl.PointCloud(surface_points.astype(np.float32))
         voxel = p_cloud.make_voxel_grid_filter()
@@ -761,12 +769,25 @@ class GpgGraspSampler(GraspSampler):
         processed_potential_grasp = []
         grasp_test = []
 
+        # visualize selected surface points
+        if False:
+            for i in range(max_num_samples):
+                # get candidate contacts
+                ind = np.random.choice(num_surface, size=1, replace=False)
+                selected_surface = surface_points[ind, :].reshape(3)
+                self.show_points(np.array([selected_surface]), 'r')
+            self.show_points(surface_points)
+            self.show()
+
         hand_points = self.get_hand_points(np.array([0, 0, 0]), np.array([1, 0, 0]), np.array([0, 1, 0]))
         # get all grasps
         while len(grasps) < num_grasps and sampled_surface_amount < max_num_samples:
             # get candidate contacts
             ind = np.random.choice(num_surface, size=1, replace=False)
             selected_surface = surface_points[ind, :].reshape(3)
+
+            if vis:
+                self.show_points(np.array([selected_surface]), 'r')
 
             # cal major principal curvature
             # r_ball = max(self.gripper.hand_depth, self.gripper.hand_outer_diameter)
@@ -776,8 +797,7 @@ class GpgGraspSampler(GraspSampler):
 
             # NOTE: we can not directly sample from point clouds so we use a relatively small radius.
             """ cal local frame: normal, major_pc, minor_pc """
-            ret = self.cal_surface_property(graspable, selected_surface, r_ball,
-                                            point_amount, max_trial, vis=vis)
+            ret = self.cal_surface_property(graspable, selected_surface, r_ball, point_amount, max_trial)
             if ret is None:
                 continue
             else:
@@ -789,9 +809,11 @@ class GpgGraspSampler(GraspSampler):
                 new_normal = -new_normal
                 minor_pc = -minor_pc
 
-            # self.show_arrow(selected_surface, new_normal, 'r')
-            # self.show_arrow(selected_surface, major_pc, 'g')
-            # self.show_arrow(selected_surface, minor_pc, 'b')
+            # show local coordinate
+            if True:
+                self.show_arrow(selected_surface, new_normal, 'r')
+                self.show_arrow(selected_surface, major_pc, 'g')
+                self.show_arrow(selected_surface, minor_pc, 'b')
 
             """ Step1: rotat grasp around an axis(minor_pc:blue) """
             potential_grasp = []
@@ -965,7 +987,7 @@ class GpgGraspSampler(GraspSampler):
                             processed_potential_grasp.append([tmp_grasp_bottom_center, tmp_grasp_normal,
                                                               tmp_major_pc, minor_pc, tmp_grasp_bottom_center])
 
-                            if vis:
+                            if False:
                                 logger.info('usefull grasp sample point original: %s', selected_surface)
                                 self.show_points(selected_surface, color='r', scale_factor=.005)
                                 self.show_grasp_norm_oneside(selected_surface, new_normal, major_pc,
@@ -1019,8 +1041,8 @@ class GpgGraspSampler(GraspSampler):
                 depth=self.gripper.hand_depth, normal=grasp_normal, minor_pc=minor_pc), type='frame')
             grasps.append(grasp3d)
 
-        if vis:
-            logger.info("processed_potential_grasp %d", len(processed_potential_grasp))
+        if True:
+            logger.info("generate potential grasp %d", len(processed_potential_grasp))
             self.show_all_grasps(processed_potential_grasp)
             # self.show_all_grasps(grasp_test)
             self.show_points(all_points)
