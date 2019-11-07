@@ -1,3 +1,13 @@
+# Build and Release Folders
+cmake-build-debug/
+cmake-build-release/
+bin-debug/
+bin-release/
+[Oo]bj/
+[Bb]in/
+build/
+
+
 dex-net/apps/generated_grasps/
 .dexnet/
 

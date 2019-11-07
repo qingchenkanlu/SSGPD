@@ -177,6 +177,7 @@ def cal_grasp(msg, cam_pos_):
     point_cloud = pcl.PointCloud(points_)  # 传入pcl处理
     # 计算表面法线
     norm = point_cloud.make_NormalEstimation()
+    pcl.save_PointNormal()
     norm.set_KSearch(30)  # critical parameter when calculating the norms
     normals = norm.compute()
     surface_normal = normals.to_array()
