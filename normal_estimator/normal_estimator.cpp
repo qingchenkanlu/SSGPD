@@ -1,8 +1,5 @@
 #include <iostream>
 
-#include <pcl/features/integral_image_normal.h>
-#include <pcl/features/normal_3d_omp.h>
-#include <pcl/filters/random_sample.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/point_cloud.h>
@@ -11,9 +8,11 @@
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
 #include <pcl/search/impl/kdtree.hpp>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/features/normal_3d_omp.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-//# define SHOW
+# define SHOW
 
 using namespace std;
 typedef pcl::PointXYZ PointType;
@@ -74,20 +73,34 @@ int main() {
     cloud = loadPointCloud("../surface_cloud.ply");
 
     // 滤除工作空间外点云
-    std::vector<float> workspace = {0.0, 2.0, -1.0, 1.0, 0, 1.0};
-    pcl::PointCloud<PointType>::Ptr cloud_filter(new pcl::PointCloud<PointType>);
+    std::vector<float> workspace = {0.0, 2.0, -0.4, 0.4, -0.1, 1.0};
+    pcl::PointCloud<PointType>::Ptr cloud_workspace_filter(new pcl::PointCloud<PointType>);
     for (int i = 0; i < cloud->size(); i++) {
         const PointType &p = cloud->points[i];
         if (p.x > workspace[0] && p.x < workspace[1] && p.y > workspace[2] &&
             p.y < workspace[3] && p.z > workspace[4] && p.z < workspace[5]) {
-            cloud_filter->push_back(p);
+            cloud_workspace_filter->push_back(p);
         }
     }
 
+    // 体素栅格降采样
+    pcl::PointCloud<PointType>::Ptr cloud_workspace_voxel(new pcl::PointCloud<PointType>);
+    pcl::VoxelGrid<PointType> sor;
+    sor.setInputCloud (cloud_workspace_filter);
+    sor.setLeafSize (0.005f, 0.005f, 0.005f);
+    sor.filter (*cloud_workspace_voxel);
+
+    // 滤除桌面点云
+    pcl::PointCloud<PointType>::Ptr cloud_plane_filter(new pcl::PointCloud<PointType>);
+    for (int i = 0; i < cloud->size(); i++) {
+        const PointType &p = cloud_workspace_filter->points[i];
+        if (p.z > 0.0) cloud_plane_filter->push_back(p);
+    }
+
     Eigen::Vector4f pcaCentroid;
-    pcl::compute3DCentroid(*cloud_filter, pcaCentroid);
+    pcl::compute3DCentroid(*cloud_plane_filter, pcaCentroid);
     Eigen::Matrix3f covariance;
-    pcl::computeCovarianceMatrixNormalized(*cloud_filter, pcaCentroid, covariance);
+    pcl::computeCovarianceMatrixNormalized(*cloud_plane_filter, pcaCentroid, covariance);
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
     Eigen::Matrix3f eigenVectorsPCA = eigen_solver.eigenvectors();
     const Eigen::Vector3f& eigenValuesPCA = eigen_solver.eigenvalues();
@@ -121,7 +134,7 @@ int main() {
 #endif
 
     pcl::PointCloud<PointType>::Ptr transformedCloud(new pcl::PointCloud<PointType>);
-    pcl::transformPointCloud(*cloud_filter, *transformedCloud, tm);
+    pcl::transformPointCloud(*cloud_plane_filter, *transformedCloud, tm);
 
     PointType min_p1, max_p1;
     Eigen::Vector3f c1, c;
@@ -242,19 +255,23 @@ int main() {
     }
 
 #ifdef SHOW
-    pcl::visualization::PCLVisualizer viewer1("cloud");
-    pcl::visualization::PointCloudColorHandlerCustom<PointType> handler1(cloud, 0, 255, 255); //转换到原点的点云相关
-    viewer1.addPointCloud(cloud, handler1, "cloud");
+    pcl::visualization::PCLVisualizer viewer1("cloud_origin");
+    pcl::visualization::PointCloudColorHandlerCustom<PointType> handler_origin(cloud, 0, 255, 255);
+    viewer1.addPointCloud(cloud, handler_origin, "cloud_origin");
 
-    pcl::visualization::PCLVisualizer viewer2("cloud_filter");
-    pcl::visualization::PointCloudColorHandlerCustom<PointType> handler2(cloud_filter, 0, 255, 255); //转换到原点的点云相关
-    viewer2.addPointCloud(cloud_filter, handler2, "cloud_filter");
+    pcl::visualization::PCLVisualizer viewer2("cloud_workspace_filter");
+    pcl::visualization::PointCloudColorHandlerCustom<PointType> handler_workspace_filter(cloud_workspace_filter, 0, 255, 255);
+    viewer2.addPointCloud(cloud_workspace_filter, handler_workspace_filter, "cloud_workspace_filter");
+
+    pcl::visualization::PCLVisualizer viewer3("cloud_workspace_voxel");
+    pcl::visualization::PointCloudColorHandlerCustom<PointType> handler_workspace_voxel(cloud_workspace_voxel, 0, 255, 255);
+    viewer3.addPointCloud(cloud_workspace_voxel, handler_workspace_voxel, "cloud_workspace_voxel");
 
     //visualization
     pcl::visualization::PCLVisualizer viewer("viewer");
     viewer.setBackgroundColor(0.0,0.0,0.0);
 
-    pcl::visualization::PointCloudColorHandlerCustom<PointType> tc_handler(transformedCloud, 0, 255, 0); //转换到原点的点云相关
+    pcl::visualization::PointCloudColorHandlerCustom<PointType> tc_handler(transformedCloud, 0, 255, 0);
     viewer.addPointCloud(transformedCloud, tc_handler, "transformCloud");
     viewer.addCube(bboxT1, bboxQ1, whd1(0), whd1(1), whd1(2), "bbox1");
     viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "bbox1");
@@ -264,7 +281,7 @@ int main() {
     viewer.addArrow(pcaY, op, 0.0, 1.0, 0.0, false, "arrow_Y");
     viewer.addArrow(pcaZ, op, 0.0, 0.0, 1.0, false, "arrow_Z");
 
-    pcl::visualization::PointCloudColorHandlerCustom<PointType> color_handler(cloud, 255, 0, 0);  //输入的初始点云相关
+    pcl::visualization::PointCloudColorHandlerCustom<PointType> color_handler(cloud, 255, 0, 0);
     viewer.addPointCloud(cloud, color_handler, "cloud");
     viewer.addCube(bboxT, bboxQ, whd(0), whd(1), whd(2), "bbox");
     viewer.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "bbox");
@@ -338,11 +355,27 @@ int main() {
 #endif
     }
 
+    // 将点云及法线转换到原始坐标系下
+    pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals_origin(new pcl::PointCloud<pcl::PointNormal>);
+    pcl::transformPointCloudWithNormals(*cloud_with_normals, *cloud_with_normals_origin, tm_inv);
+
+
+    // 删除点云及法线中的Nan
+#ifdef SHOW
+    printf("Cloud before removing NANs: %zu\n", cloud_with_normals_origin->size());
+#endif
+    std::vector<int> indices;
+    pcl::removeNaNFromPointCloud(*cloud_with_normals_origin, *cloud_with_normals_origin, indices);
+    pcl::removeNaNNormalsFromPointCloud(*cloud_with_normals_origin, *cloud_with_normals_origin, indices);
+#ifdef SHOW
+    printf("Cloud after removing NANs: %zu\n", cloud_with_normals_origin->size());
+#endif
+
     // 显示拼接后的点云及法线
     pcl::PointCloud<pcl::Normal>::Ptr normals_out(new pcl::PointCloud<pcl::Normal>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_out(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::copyPointCloud(*cloud_with_normals, *normals_out);
-    pcl::copyPointCloud(*cloud_with_normals, *cloud_out);
+    pcl::copyPointCloud(*cloud_with_normals_origin, *normals_out);
+    pcl::copyPointCloud(*cloud_with_normals_origin, *cloud_out);
 
     // 打印法线计算耗时
     t_ = omp_get_wtime() - t_;
@@ -350,18 +383,29 @@ int main() {
 
     // 保存拼接后的点云及法线
     pcl::PCDWriter writer;
-    writer.writeASCII("../cloud_with_normals.pcd", *cloud_with_normals);
-    writer.writeASCII("../cloud.pcd", *cloud_out);
-    writer.writeASCII("../normals.pcd", *normals_out);
-    save_normals("../normals_as_xyz.pcd", normals_out);
+    writer.writeASCII("../cloud_with_normals.pcd", *cloud_with_normals_origin); // 保存桌面以上，含有法线的点云
+    writer.writeASCII("../cloud.pcd", *cloud_out); // 保存桌面以上，计算过法线的点云
+    writer.writeASCII("../cloud_voxel.pcd", *cloud_workspace_voxel); // 保存未滤除桌面，降采样之后的点云
+    writer.writeASCII("../normals.pcd", *normals_out); // 以Normal格式保存法线
+    save_normals("../normals_as_xyz.pcd", normals_out); // 以PointXYZ格式保存法线
 
 #ifdef SHOW
     pcl::visualization::PCLVisualizer viewer_("cloud_with_normals");
     viewer_.addCoordinateSystem(0.1);
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> handler(cloud_out, 0, 0, 255); //转换到原点的点云相关
-    viewer_.addPointCloud(cloud_out, handler, "cloud_out");
+
+    // 显示原始点云
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> handler_cloud_origion(cloud, 0, 255, 255);
+    viewer_.addPointCloud(cloud, handler_cloud_origion, "cloud_origin");
+    viewer_.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "cloud_origin");
+
+
+    // 显示计算法线后并转换回原始坐标系下的点云
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> handler_cloud_out(cloud_out, 0, 0, 255);
+    viewer_.addPointCloud(cloud_out, handler_cloud_out, "cloud_out");
     viewer_.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 6, "cloud_out");
 
+
+    // 显示原始坐标系下法线
     viewer_.addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(cloud_out, normals_out, 1, 0.01, "normals_out"); //法线标签
     viewer_.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR, 1.0, 0.0, 0.0, "normals_out");
 

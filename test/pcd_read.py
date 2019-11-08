@@ -26,7 +26,8 @@
 # }
 
 import pcl
-
+import numpy as np
+import math
 
 def main():
     cloud = pcl.load('./cloud.pcd')
@@ -34,8 +35,15 @@ def main():
     print('Loaded ' + str(cloud.width * cloud.height) +
           ' data points from cloud.pcd with the following fields: ')
 
+    cloud = cloud.to_array()
+    normals = normals.to_array()
+
     print("cloud[0]", cloud[0])
     print("normals[0]", normals[0])
+
+    if np.isnan(np.sum(normals[0])):
+        print("[DEBUG] nan in normal")
+
     # for i in range(0, cloud.size):
     #     print('x: ' + str(cloud[i][0]) + ', y : ' +
     #           str(cloud[i][1]) + ', z : ' + str(cloud[i][2]))
