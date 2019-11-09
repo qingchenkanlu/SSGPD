@@ -176,19 +176,19 @@ class GraspSamplerPcd:
     @staticmethod
     def get_color(color):
         if color == 'b':
-            color_f = (0, 0, 1)
+            color_f = (0.0, 0.0, 1.0)
         elif color == 'r':
-            color_f = (1, 0, 0)
+            color_f = (1.0, 0.0, 0.0)
         elif color == 'g':
-            color_f = (0, 1, 0)
+            color_f = (0.0, 1.0, 0.0)
         elif color == 'y':  # yellow
-            color_f = (1, 1, 0)
+            color_f = (1.0, 1.0, 0.0)
         elif color == 'p':  # purple
-            color_f = (1, 0, 1)
+            color_f = (1.0, 0.0, 1.0)
         elif color == 'lb':  # light blue
-            color_f = (0.22, 1, 1)
+            color_f = (0.22, 1.0, 1.0)
         else:
-            color_f = (1, 1, 1)
+            color_f = (1.0, 1.0, 1.0)
         return color_f
 
     def show_points(self, point, color='lb', scale_factor=.002):
@@ -414,7 +414,9 @@ class GraspSamplerPcd:
         """
         display ParrallelJawPtGraspPcd
         """
-        color_f = self.get_color(color)
+        if not isinstance(grasps, list):
+            grasps = np.array([grasps])
+
         for grasp in grasps:
             approach_normal = grasp.rotated_full_axis[:, 0]
             approach_normal = approach_normal / np.linalg.norm(approach_normal)
@@ -427,7 +429,7 @@ class GraspSamplerPcd:
             hand_points = self.get_hand_points(grasp_bottom_center, approach_normal, major_pc)
             # print("hand_points:", hand_points)
 
-            self.show_grasp_3d(hand_points, color=color_f)
+            self.show_grasp_3d(hand_points, color=color)
 
     @staticmethod
     def new_window( size=500):

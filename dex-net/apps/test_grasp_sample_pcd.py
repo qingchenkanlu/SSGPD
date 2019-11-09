@@ -27,7 +27,7 @@ def test_grasp_sample():
     # Test GpgGraspSamplerPcd
     ags = GpgGraspSamplerPcd(gripper, yaml_config)
     if not reload:
-        grasps = ags.sample_grasps(obj, num_grasps=2000, max_num_samples=155)
+        grasps = ags.sample_grasps(obj, num_grasps=5000, max_num_samples=250)
         grasps_save(grasps, "/home/sdhm/grasps/test_pcd")
         # exit()
 
@@ -52,6 +52,7 @@ def test_grasp_sample():
     contacts_found_not_force_closure_num = 0
     proccessed_num = 0
     grasps_save_ls = []
+    grasps_with_score = []
     for grasp in grasps:
         proccessed_num += 1
         tmp, is_force_closure = False, False
@@ -87,6 +88,8 @@ def test_grasp_sample():
                 # print("[DEBUG] tmp and not is_force_closure,value_fc:", value_fc, "ind_:", ind_)
                 # canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[round(fc_list[ind_-1], 2)], vis=False)
                 good_count_perfect[ind_-1] += 1  # 前一个摩擦系数最小
+                canny_quality = 0
+                grasps_with_score.append((grasp, round(fc_list[ind_-1], 2), canny_quality))  # 保存前一个抓取
 
                 # if np.isclose(value_fc, 0.2):
                 #     # ags.show_surface_points(obj)
@@ -99,6 +102,8 @@ def test_grasp_sample():
                 # print("[DEBUG] is_force_closure and value_fc == fc_list[-1]")
                 # canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[value_fc], vis=False)
                 good_count_perfect[ind_] += 1  # 已无更小摩擦系数, 此系数最小
+                canny_quality = 0
+                grasps_with_score.append((grasp, value_fc, canny_quality))
 
                 # ags.display_grasps3d([grasp], 'b')
 
@@ -107,6 +112,7 @@ def test_grasp_sample():
             if not is_force_closure and np.isclose(value_fc, fc_list[-1]):  # 判断结束还未找到对应摩擦系数,并且找到一对接触点
                 print("[DEBUG] not is_force_closure but contacts_found")
                 contacts_found_not_force_closure_num += 1
+                grasps_with_score.append((grasp, 3.2, 0))
 
                 # grasps_save(grasp, "/home/sdhm/grasps/%s" % str(mark))
                 # print("[DEBUG] save grasp to %s.pickle" % str(mark))
@@ -136,7 +142,7 @@ def test_grasp_sample():
     print("contacts_found_not_force_closure num:", contacts_found_not_force_closure_num)
     print("classify took {:.2f} s".format(time.perf_counter()-start))
 
-    grasps_save(grasps, "/home/sdhm/grasps/all")
+    grasps_save(grasps_with_score, "/home/sdhm/grasps/grasps_with_score")
     grasps_save(grasps_save_ls, "/home/sdhm/grasps/contact_not_found")
 
     # ags.show_surface_points(obj, color='r')
