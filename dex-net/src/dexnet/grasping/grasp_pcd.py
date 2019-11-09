@@ -131,7 +131,7 @@ class PointGrasp(Grasp):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def create_line_of_action(g, axis, width, obj, num_samples):
+    def create_line_of_action(start_point, axis, width, num_samples):
         """ Creates a line of action, or the points in space that the grasp traces out, from a point g in world coordinates on an object.
 
         Returns
@@ -316,9 +316,9 @@ class ParallelJawPtGrasp3D(PointGrasp):
         configuration[8] = depth
         configuration[9] = min_width
         if len(normal) == 3:
-            configuration[9:12] = normal
+            configuration[10:13] = normal
         if len(minor_pc) == 3:
-            configuration[12:15] = minor_pc
+            configuration[13:16] = minor_pc
         return configuration
 
     def params_from_configuration(configuration, type='axis'):
@@ -345,7 +345,7 @@ class ParallelJawPtGrasp3D(PointGrasp):
             minor principle curvature of the grasp frame
         """
         if not isinstance(configuration, np.ndarray) or (configuration.shape[0] != 9 and configuration.shape[0] != 16):
-            raise ValueError('Configuration must be numpy ndarray of size 9 or 10')
+            raise ValueError('Configuration must be numpy ndarray of size 9 or 16')
         if configuration.shape[0] >= 9:
             min_grasp_width = 0
         else:
@@ -358,7 +358,7 @@ class ParallelJawPtGrasp3D(PointGrasp):
                 8], min_grasp_width, [], []
         elif type=='frame':
             return configuration[0:3], configuration[3:6], configuration[6], configuration[7], configuration[
-                8], min_grasp_width, configuration[9:12], configuration[12:15]
+                8], configuration[9], configuration[10:13], configuration[13:16]
 
     @staticmethod
     def center_from_endpoints(g1, g2):
@@ -487,7 +487,7 @@ class ParallelJawPtGrasp3D(PointGrasp):
         T_gripper_obj = self.T_grasp_obj * T_gripper_grasp
         return T_gripper_obj
 
-    def create_line_of_action(start_point, axis, width, num_samples, min_width=0):
+    def create_line_of_action(start_point, axis, width, num_samples):
         """
         Creates a straight line of action, from a given point and direction in world coords
 
@@ -508,11 +508,10 @@ class ParallelJawPtGrasp3D(PointGrasp):
             coordinates to pass through in 3D space for contact checking
         """
         num_samples = max(num_samples, 3)  # always at least 3 samples
-        line_of_action = [start_point + t * axis for t in  # Note: change line length from width/2 to width
-                          np.linspace(0, float(width) - float(min_width), num=num_samples)]
+        line_of_action = [start_point + t * axis for t in np.linspace(0, float(width), num=num_samples)]
         return line_of_action
 
-    def close_fingers(self, obj, check_approach=False, approach_dist=1.0, vis=True):
+    def close_fingers(self, obj, check_approach=False, approach_dist=1.0, vis=False):
         """ Steps along grasp axis to find the locations of contact with an object
 
         Parameters
@@ -557,16 +556,13 @@ class ParallelJawPtGrasp3D(PointGrasp):
             mlab.show()
 
         start_contact_flag = False
-        update_time_flag = True
         contacts_list = []
         for i in range(num_samples_depth):
             g1_world, g2_world = (g1_world_list[i], g2_world_list[i])
 
             # get line of action
-            line_of_action1 = ParallelJawPtGrasp3D.create_line_of_action(g1_world, self.axis_, self.open_width,
-                                                                         num_samples, min_width=self.close_width)
-            line_of_action2 = ParallelJawPtGrasp3D.create_line_of_action(g2_world, -self.axis_, self.open_width,
-                                                                         num_samples, min_width=self.close_width)
+            line_of_action1 = ParallelJawPtGrasp3D.create_line_of_action(g1_world, self.axis_, self.open_width, num_samples)
+            line_of_action2 = ParallelJawPtGrasp3D.create_line_of_action(g2_world, -self.axis_, self.open_width, num_samples)
 
             # find contacts
             c1_found, c1 = self.find_contact(line_of_action1, obj, r_ball)
@@ -577,10 +573,6 @@ class ParallelJawPtGrasp3D(PointGrasp):
             if contacts_found:
                 start_contact_flag = True  # find the first pair of contacts
                 contacts_list.append([c1, c2])
-
-                # if update_time_flag:
-                #     start_contact = time.perf_counter()
-                #     update_time_flag = False
 
                 if vis:
                     self.show_points(line_of_action1, 'r', 0.0015)
@@ -593,32 +585,59 @@ class ParallelJawPtGrasp3D(PointGrasp):
                     self.show_arrow(c2.point, c2.in_direction, 'g', scale_factor=0.02)
                     # mlab.show()
 
-            if (start_contact_flag and not contacts_found) or (start_contact_flag and i == num_samples_depth):  # find the last contacts
-                if len(contacts_list) < 2:  # too few contacts
-                    logger.info("too few contacts")
-                    return False, [None, None]
+            # if (start_contact_flag and not contacts_found) or (start_contact_flag and i == num_samples_depth):  # find the last contacts
+            #     if len(contacts_list) < 2:  # too few contacts
+            #         logger.info("too few contacts")
+            #         return False, [None, None]
+            #
+            #     # find the pair of contacts which have max distance
+            #     dist_list = []
+            #     for c1, c2 in contacts_list:
+            #         dist_list.append(np.linalg.norm(c1.point-c2.point))  # cal the distance
+            #     max_index = dist_list.index(max(dist_list))  # cal the max distance's index
+            #
+            #     if vis:
+            #         self.show_points(np.array([g1_world, g2_world]), color='g', scale_factor=0.005)
+            #         self.show_points(np.array([contacts_list[max_index][0].point, contacts_list[max_index][1].point]),
+            #                          color='b', scale_factor=0.005)
+            #         normal1 = contacts_list[max_index][0].normal
+            #         normal2 = contacts_list[max_index][1].normal
+            #         self.show_arrow(contacts_list[max_index][0].point, normal1, 'y', scale_factor=0.02)
+            #         self.show_arrow(contacts_list[max_index][1].point, normal2, 'y', scale_factor=0.02)
+            #         mlab.show()
+            #
+            #     # logger.debug("find first contact took %.4f" % (start_contact - start))
+            #     logger.debug("close finger took %.4f" % (time.perf_counter()-start))
+            #     return True, contacts_list[max_index]
 
-                # find the pair of contacts which have max distance
-                dist_list = []
-                for c1, c2 in contacts_list:
-                    dist_list.append(np.linalg.norm(c1.point-c2.point))  # cal the distance
-                max_index = dist_list.index(max(dist_list))  # cal the max distance's index
+        # print("[DEBUG] len(contacts_list)", len(contacts_list))
+        if len(contacts_list) >= 2:  # at least found 2 contacts
+            # find the pair of contacts which have max distance
+            dist_list = []
+            for c1, c2 in contacts_list:
+                dist_list.append(np.linalg.norm(c1.point - c2.point))  # cal the distance
+            max_index = dist_list.index(max(dist_list))  # cal the max distance's index
 
-                if vis:
-                    self.show_points(np.array([g1_world, g2_world]), color='g', scale_factor=0.005)
-                    self.show_points(np.array([contacts_list[max_index][0].point, contacts_list[max_index][1].point]),
-                                     color='b', scale_factor=0.005)
-                    normal1 = contacts_list[max_index][0].normal
-                    normal2 = contacts_list[max_index][1].normal
-                    self.show_arrow(contacts_list[max_index][0].point, normal1, 'y', scale_factor=0.02)
-                    self.show_arrow(contacts_list[max_index][1].point, normal2, 'y', scale_factor=0.02)
-                    mlab.show()
+            if vis:
+                self.show_points(np.array([g1_world, g2_world]), color='g', scale_factor=0.005)
+                self.show_points(np.array([contacts_list[max_index][0].point, contacts_list[max_index][1].point]),
+                                 color='b', scale_factor=0.005)
+                normal1 = contacts_list[max_index][0].normal
+                normal2 = contacts_list[max_index][1].normal
+                self.show_arrow(contacts_list[max_index][0].point, normal1, 'y', scale_factor=0.02)
+                self.show_arrow(contacts_list[max_index][1].point, normal2, 'y', scale_factor=0.02)
+                mlab.show()
 
-                # logger.debug("find first contact took %.2f" % (start_contact - start))
-                logger.debug("close finger took %.2f" % (time.perf_counter()-start))
+            if max(dist_list) > self.min_grasp_width_:
+                logger.debug("close finger took %.4f" % (time.perf_counter() - start))
                 return True, contacts_list[max_index]
+            else:
+                print("max(dist_list): ", max(dist_list))
+                print("close_width: ", self.min_grasp_width_)
+                logger.info("distance too short")
 
         logger.info("not found contacts")
+        logger.debug("close finger took %.4f" % (time.perf_counter() - start))
         return False, [None, None]
 
     def find_contact(self, line_of_action, graspable, r_ball=0.001):
@@ -671,7 +690,7 @@ class ParallelJawPtGrasp3D(PointGrasp):
                 self.show_points(point_world, color='r', scale_factor=0.005)
                 mlab.show()
 
-            print("[DEBUG] contact_found")
+            # print("[DEBUG] contact_found")
 
         logger.debug("find contact take: %f" % (time.perf_counter()-t))
         return contact_found, contact

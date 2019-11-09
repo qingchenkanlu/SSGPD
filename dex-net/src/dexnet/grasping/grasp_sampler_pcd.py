@@ -764,9 +764,9 @@ class GpgGraspSamplerPcd(GraspSamplerPcd):
             minor_pc = np.array(grasp[3])
 
             grasp_top_center = grasp_bottom_center + self.gripper.hand_depth * grasp_normal
-            grasp3d = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(
-                grasp_top_center, major_pc, self.gripper.hand_outer_diameter-self.gripper.finger_width,
-                depth=self.gripper.hand_depth, normal=grasp_normal, minor_pc=minor_pc), type='frame')
+            grasp3d = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(grasp_top_center, major_pc,
+                     width=self.gripper.hand_outer_diameter-self.gripper.finger_width, depth=self.gripper.hand_depth,
+                     min_width=self.gripper.min_width, normal=grasp_normal, minor_pc=minor_pc), type='frame')
             grasps.append(grasp3d)
 
         if False:

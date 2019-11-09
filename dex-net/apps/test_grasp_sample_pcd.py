@@ -8,7 +8,7 @@ import numpy as np
 
 import pcl
 from dexnet.grasping.quality_pcd import PointGraspMetrics3D
-from dexnet.grasping.grasp_sampler_pcd import ParallelJawPtGrasp3D, GpgGraspSamplerPcd
+from dexnet.grasping.grasp_sampler_pcd import GpgGraspSamplerPcd
 from dexnet.grasping.graspable_object_pcd import GraspableObjectPcd
 from dexnet.grasping.grasp_quality_config_pcd import GraspQualityConfigFactory
 from dexnet.grasping import RobotGripper
@@ -22,12 +22,12 @@ coloredlogs.install(level='INFO')
 
 
 def test_grasp_sample():
-    reload = True
+    reload = False
     grasps = None
     # Test GpgGraspSamplerPcd
     ags = GpgGraspSamplerPcd(gripper, yaml_config)
     if not reload:
-        grasps = ags.sample_grasps(obj, num_grasps=2000, max_num_samples=25)
+        grasps = ags.sample_grasps(obj, num_grasps=2000, max_num_samples=155)
         grasps_save(grasps, "/home/sdhm/grasps/test_pcd")
         # exit()
 
@@ -35,7 +35,7 @@ def test_grasp_sample():
     if reload:
         grasps = grasps_read('/home/sdhm/grasps/contact_not_found.pickle')
 
-    if True:
+    if False:
         ags.display_grasps3d(grasps)
         ags.show_surface_points(obj, 'r')
         ags.show()
@@ -46,11 +46,12 @@ def test_grasp_sample():
     # test quality
     force_closure_quality_config = {}
     canny_quality_config = {}
-    fc_list = [3.0, 2.0, 1.7, 1.4, 1.1, 0.8, 0.5, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1]
+    fc_list = [4.0, 3.0, 2.0, 1.7, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25, 0.2]
     good_count_perfect = np.zeros(len(fc_list))
     contacts_not_found_num = 0
     contacts_found_not_force_closure_num = 0
     proccessed_num = 0
+    grasps_save_ls = []
     for grasp in grasps:
         proccessed_num += 1
         tmp, is_force_closure = False, False
@@ -60,14 +61,13 @@ def test_grasp_sample():
         if not contacts_found:
             print("[DEBUG] contact_not_found")
             # ags.show_surface_points(obj)
-            ags.display_grasps3d([grasp], 'g')
+            # ags.display_grasps3d([grasp], 'g')
             # ags.show()
-            # grasps_save(grasp, "/home/sdhm/grasps/contact_not_found")
-            # exit()
+            grasps_save_ls.append(grasp)
             # 未找到接触点, 跳过 FIXME:将这些抓取的摩擦系数设为无穷大
             contacts_not_found_num += 1
             continue
-        print("good_count_perfect[%d/%d]" % (proccessed_num, len(grasps)), good_count_perfect)
+        print("good cnt[%d/%d]" % (proccessed_num, len(grasps)), good_count_perfect)
 
         for ind_, value_fc in enumerate(fc_list):  # 为每个摩擦系数分配抓取姿态
             value_fc = round(value_fc, 2)
@@ -129,7 +129,7 @@ def test_grasp_sample():
 
                 break  # 找到即退出
 
-    print("\n\ngood_count_perfect", good_count_perfect)
+    print("\n\ngood cnt", good_count_perfect)
     print("proccessed grasp num:", len(grasps))
     print("good_count_perfect num:", int(good_count_perfect.sum()))
     print("contacts_not_found num:", contacts_not_found_num)
@@ -137,9 +137,10 @@ def test_grasp_sample():
     print("classify took {:.2f} s".format(time.perf_counter()-start))
 
     grasps_save(grasps, "/home/sdhm/grasps/all")
+    grasps_save(grasps_save_ls, "/home/sdhm/grasps/contact_not_found")
 
-    ags.show_surface_points(obj, color='r')
-    ags.show()
+    # ags.show_surface_points(obj, color='r')
+    # ags.show()
     return True
 
 
