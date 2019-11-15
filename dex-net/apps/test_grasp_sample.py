@@ -45,7 +45,6 @@ def test_grasp_sample():
     start = time.perf_counter()
     # test quality
     force_closure_quality_config = {}
-    canny_quality_config = {}
     fc_list = [4.0, 3.0, 2.0, 1.7, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25, 0.2]
     good_count_perfect = np.zeros(len(fc_list))
     contacts_not_found_num = 0
@@ -74,10 +73,8 @@ def test_grasp_sample():
             value_fc = round(value_fc, 2)
             tmp = is_force_closure
             yaml_config['metrics']['force_closure']['friction_coef'] = value_fc
-            yaml_config['metrics']['robust_ferrari_canny']['friction_coef'] = value_fc
 
             force_closure_quality_config[value_fc] = GraspQualityConfigFactory.create_config(yaml_config['metrics']['force_closure'])
-            canny_quality_config[value_fc] = GraspQualityConfigFactory.create_config(yaml_config['metrics']['robust_ferrari_canny'])
 
             is_force_closure, _ = PointGraspMetrics3D.grasp_quality(grasp, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
                                                                     force_closure_quality_config[value_fc],
@@ -88,8 +85,7 @@ def test_grasp_sample():
                 # print("[DEBUG] tmp and not is_force_closure,value_fc:", value_fc, "ind_:", ind_)
                 # canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[round(fc_list[ind_-1], 2)], vis=False)
                 good_count_perfect[ind_-1] += 1  # 前一个摩擦系数最小
-                canny_quality = 0
-                grasps_with_score.append((grasp, round(fc_list[ind_-1], 2), canny_quality))  # 保存前一个抓取
+                grasps_with_score.append((grasp, round(fc_list[ind_-1], 2)))  # 保存前一个抓取
 
                 # if np.isclose(value_fc, 0.2):
                 #     # ags.show_surface_points(obj)
@@ -100,10 +96,8 @@ def test_grasp_sample():
                 break  # 找到即退出
             elif is_force_closure and np.isclose(value_fc, fc_list[-1]):  # 力闭合并且摩擦系数最小
                 # print("[DEBUG] is_force_closure and value_fc == fc_list[-1]")
-                # canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[value_fc], vis=False)
                 good_count_perfect[ind_] += 1  # 已无更小摩擦系数, 此系数最小
-                canny_quality = 0
-                grasps_with_score.append((grasp, value_fc, canny_quality))
+                grasps_with_score.append((grasp, value_fc))
 
                 # ags.display_grasps3d([grasp], 'b')
 
