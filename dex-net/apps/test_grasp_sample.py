@@ -4,71 +4,39 @@
 
 import os
 import time
-import logging
-import coloredlogs
 import numpy as np
-from dexnet.grasping.quality import PointGraspMetrics3D
-from dexnet.grasping import ParallelJawPtGrasp3D, AntipodalGraspSampler, GpgGraspSampler
-from dexnet.grasping import RobotGripper, GraspableObject3D, GraspQualityConfigFactory
+import open3d as o3d
+
+from dexnet.grasping.quality_o3d import PointGraspMetrics3D
+from dexnet.grasping.grasp_sampler import GpgGraspSamplerO3d
+from dexnet.grasping.graspable_object import GraspableObjectO3d
+from dexnet.grasping.grasp_quality_config import GraspQualityConfigFactory
+from dexnet.grasping import RobotGripper
 from autolab_core import YamlConfig
-from meshpy.obj_file import ObjFile
-from meshpy.sdf_file import SdfFile
 from utils.grasps_save_read import grasps_save, grasps_read
 
+import logging
+import coloredlogs
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='INFO')
 
 
-def test_grasp_example():
-    yaml_config['metrics']['force_closure']['friction_coef'] = 2.0
-    force_closure_quality_config = GraspQualityConfigFactory.create_config(yaml_config['metrics']['force_closure'])
-
-    grasp3d = ParallelJawPtGrasp3D(ParallelJawPtGrasp3D.configuration_from_params(
-        [-0.02845172, -0.03360422, 0.08925702],
-        [-0.93863103, -0.34468021, -0.01293627],
-        0.115,
-        depth=0.075,
-        normal=[-0.34477207, 0.93866949, 0.00564044],
-        minor_pc=[-0.01019873, -0.00975435, 0.99990041]), type='frame')
-
-    is_force_closure, contacts_found = PointGraspMetrics3D.grasp_quality(grasp3d, obj,  # 依据摩擦系数 value_fc 评估抓取姿态
-                                                                         force_closure_quality_config,
-                                                                         vis=False)
-
-    print("contacts_found", contacts_found)
-
-    ags = GpgGraspSampler(gripper, yaml_config)
-    ags.new_window(800)
-    ags.show_points(np.array([-0.02845172, -0.03360422, 0.08925702]), color='g', scale_factor=0.005)
-    print("grasp.center", np.array(grasp3d.center))
-    ags.show_points(np.array(grasp3d.center), color='r', scale_factor=0.005)
-    ags.show_points(np.array(grasp3d.endpoints), color='b', scale_factor=0.005)
-    ags.show_surface_points(obj)
-    ags.display_grasps3d([grasp3d], 'g')
-    ags.show()
-    exit()
-
-
-def test_grasp_sample(target_num_grasps):
-    """
-    :param target_num_grasps: 抓取姿态生成器每次的目标生成抓取姿态数
-    """
+def test_grasp_sample():
     reload = False
-    if False:
-        # Test AntipodalGraspSampler
-        ags = AntipodalGraspSampler(gripper, yaml_config)
-        grasps = ags.sample_grasps(obj, target_num_grasps, grasp_gen_mult=10, max_iter=3, vis=False, random_approach_angle=True)
-    else:
-        # Test GpgGraspSampler
-        ags = GpgGraspSampler(gripper, yaml_config)
-        if not reload:
-            grasps = ags.sample_grasps(obj, num_grasps=2000, max_num_samples=20, filter_z=True, vis=False)
+    grasps = None
+    # Test GpgGraspSamplerPcd
+    ags = GpgGraspSamplerO3d(gripper, yaml_config)
+    if not reload:
+        grasps = ags.sample_grasps(obj, num_grasps=5000, max_num_samples=50)
+        grasps_save(grasps, "/home/sdhm/grasps/test_pcd")
+        # exit()
 
     """ load grasp from file """
     if reload:
-        grasps = grasps_read('/home/sdhm/grasps/all.pickle')
-        pass
-        ags.display_grasps3d(grasps, 'lb')
+        grasps = grasps_read('/home/sdhm/grasps/contact_not_found.pickle')
+
+    if False:
+        ags.display_grasps3d(grasps)
         ags.show_surface_points(obj, 'r')
         ags.show()
 
@@ -78,23 +46,29 @@ def test_grasp_sample(target_num_grasps):
     # test quality
     force_closure_quality_config = {}
     canny_quality_config = {}
-    fc_list = [2.0, 1.7, 1.4, 1.1, 0.8, 0.5, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05]
+    fc_list = [4.0, 3.0, 2.0, 1.7, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3, 0.25, 0.2]
     good_count_perfect = np.zeros(len(fc_list))
     contacts_not_found_num = 0
     contacts_found_not_force_closure_num = 0
     proccessed_num = 0
+    grasps_save_ls = []
+    grasps_with_score = []
     for grasp in grasps:
         proccessed_num += 1
         tmp, is_force_closure = False, False
-        contacts_found, contacts = grasp.close_fingers(obj, vis=False)
+        contacts_found, contacts = grasp.close_fingers(obj)
+        # continue
+
         if not contacts_found:
+            print("[DEBUG] contact_not_found")
             # ags.show_surface_points(obj)
             # ags.display_grasps3d([grasp], 'g')
             # ags.show()
+            grasps_save_ls.append(grasp)
             # 未找到接触点, 跳过 FIXME:将这些抓取的摩擦系数设为无穷大
             contacts_not_found_num += 1
             continue
-        print("good_count_perfect[%d/%d]" % (proccessed_num, len(grasps)), good_count_perfect)
+        print("good cnt[%d/%d]" % (proccessed_num, len(grasps)), good_count_perfect)
 
         for ind_, value_fc in enumerate(fc_list):  # 为每个摩擦系数分配抓取姿态
             value_fc = round(value_fc, 2)
@@ -114,6 +88,8 @@ def test_grasp_sample(target_num_grasps):
                 # print("[DEBUG] tmp and not is_force_closure,value_fc:", value_fc, "ind_:", ind_)
                 # canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[round(fc_list[ind_-1], 2)], vis=False)
                 good_count_perfect[ind_-1] += 1  # 前一个摩擦系数最小
+                canny_quality = 0
+                grasps_with_score.append((grasp, round(fc_list[ind_-1], 2), canny_quality))  # 保存前一个抓取
 
                 # if np.isclose(value_fc, 0.2):
                 #     # ags.show_surface_points(obj)
@@ -126,20 +102,23 @@ def test_grasp_sample(target_num_grasps):
                 # print("[DEBUG] is_force_closure and value_fc == fc_list[-1]")
                 # canny_quality = PointGraspMetrics3D.grasp_quality(grasp, obj, canny_quality_config[value_fc], vis=False)
                 good_count_perfect[ind_] += 1  # 已无更小摩擦系数, 此系数最小
+                canny_quality = 0
+                grasps_with_score.append((grasp, value_fc, canny_quality))
 
                 # ags.display_grasps3d([grasp], 'b')
 
                 break  # 找到即退出
 
             if not is_force_closure and np.isclose(value_fc, fc_list[-1]):  # 判断结束还未找到对应摩擦系数,并且找到一对接触点
-                print("[DEBUG] is_force_closure but contacts_found")
+                print("[DEBUG] not is_force_closure but contacts_found")
                 contacts_found_not_force_closure_num += 1
+                grasps_with_score.append((grasp, 3.2, 0))
 
                 # grasps_save(grasp, "/home/sdhm/grasps/%s" % str(mark))
                 # print("[DEBUG] save grasp to %s.pickle" % str(mark))
                 # mark += 1
 
-                ags.display_grasps3d([grasp], 'g')
+                # ags.display_grasps3d([grasp], 'g')
                 # ags.show_surface_points(obj, color='r')
                 # ags.show()
 
@@ -156,36 +135,36 @@ def test_grasp_sample(target_num_grasps):
 
                 break  # 找到即退出
 
-    print("\n\ngood_count_perfect", good_count_perfect)
+    print("\n\ngood cnt", good_count_perfect)
     print("proccessed grasp num:", len(grasps))
     print("good_count_perfect num:", int(good_count_perfect.sum()))
     print("contacts_not_found num:", contacts_not_found_num)
     print("contacts_found_not_force_closure num:", contacts_found_not_force_closure_num)
     print("classify took {:.2f} s".format(time.perf_counter()-start))
 
-    grasps_save(grasps, "/home/sdhm/grasps/all")
+    grasps_save(grasps_with_score, "/home/sdhm/grasps/grasps_with_score")
+    grasps_save(grasps_save_ls, "/home/sdhm/grasps/contact_not_found")
 
-    ags.show_surface_points(obj, color='r')
-    ags.show()
+    # ags.show_surface_points(obj, color='r')
+    # ags.show()
     return True
 
 
 if __name__ == '__main__':
     home_dir = os.environ['HOME']
-    file_dir = home_dir + "/Projects/GPD_PointNet/dataset/ycb_meshes_google/caterpillar"
+    file_dir = home_dir + "/Projects/GPD_PointNet/normals_estimator"
     yaml_config = YamlConfig(home_dir + "/Projects/GPD_PointNet/dex-net/test/config.yaml")
     gripper = RobotGripper.load('robotiq_85', home_dir + "/Projects/GPD_PointNet/dex-net/data/grippers")
 
-    if os.path.exists(file_dir + "/nontextured.obj"):
-        of = ObjFile(file_dir + "/nontextured.obj")
-        sf = SdfFile(file_dir + "/nontextured.sdf")
+    if os.path.exists(file_dir + "/cloud.pcd"):
+        cloud = o3d.io.read_point_cloud(file_dir + "/cloud.pcd")
+        cloud_voxel = o3d.io.read_point_cloud(file_dir + "/cloud_voxel.pcd")
+        normals = o3d.io.read_point_cloud(file_dir + "/normals_as_xyz.pcd")  # normals were saved as PointXYZ formate
     else:
-        print("can't find any obj or sdf file!")
-        raise NameError("can't find any obj or sdf file!")
+        print("can't find any cloud or normals file!")
+        raise NameError("can't find any cloud or normals file!")
 
-    mesh = of.read()
-    sdf = sf.read()
-    obj = GraspableObject3D(sdf, mesh)
+    obj = GraspableObjectO3d(cloud, normals, cloud_voxel)
 
     # test_grasp_example()
-    test_grasp_sample(20)
+    test_grasp_sample()

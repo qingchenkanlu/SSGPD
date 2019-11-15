@@ -1,29 +1,7 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# """
-# Copyright ©2017. The Regents of the University of California (Regents). All Rights Reserved.
-# Permission to use, copy, modify, and distribute this software and its documentation for educational,
-# research, and not-for-profit purposes, without fee and without a signed licensing agreement, is
-# hereby granted, provided that the above copyright notice, this paragraph and the following two
-# paragraphs appear in all copies, modifications, and distributions. Contact The Office of Technology
-# Licensing, UC Berkeley, 2150 Shattuck Avenue, Suite 510, Berkeley, CA 94720-1620, (510) 643-
-# 7201, otl@berkeley.edu, http://ipira.berkeley.edu/industry-info for commercial licensing opportunities.
-#
-# IN NO EVENT SHALL REGENTS BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL,
-# INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF
-# THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF REGENTS HAS BEEN
-# ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-# REGENTS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-# THE IMPLIgit clone https://github.com/jeffmahler/Boost.NumPy.git
-# ED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
-# HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
-# MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-# """
-# """
-# Quasi-static point-based grasp quality metrics.
-# Author: Jeff Mahler and Brian Hou
-# """
+# Author: MrRen-sdhm
+
 import logging
 # logging.root.setLevel(level=logging.DEBUG)
 import numpy as np
@@ -40,7 +18,9 @@ except:
 import sys
 import time
 
-from dexnet.grasping import PointGrasp, GraspableObject3D, GraspQualityConfig
+from dexnet.grasping.graspable_object import GraspableObjectO3d
+from dexnet.grasping.grasp import PointGrasp
+from dexnet.grasping.grasp_quality_config import GraspQualityConfig
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -72,7 +52,7 @@ class PointGraspMetrics3D:
         start = time.time()
         if not isinstance(grasp, PointGrasp):
             raise ValueError('Must provide a point grasp object')
-        if not isinstance(obj, GraspableObject3D):
+        if not isinstance(obj, GraspableObjectO3d):
             raise ValueError('Must provide a 3D graspable object')
         if not isinstance(params, GraspQualityConfig):
             raise ValueError('Must provide GraspQualityConfig')
@@ -82,14 +62,13 @@ class PointGraspMetrics3D:
         friction_coef = params.friction_coef
         num_cone_faces = params.num_cone_faces
         soft_fingers = params.soft_fingers
-        check_approach = params.check_approach
         if not hasattr(PointGraspMetrics3D, method):
-            raise ValueError('Illegal point grasp metric %s specified' % (method))
+            raise ValueError('Illegal point grasp metric %s specified' % method)
 
         contacts_start = time.time()
         # not give contacts, close_fingers to find contacts
         if contacts is None:
-            contacts_found, contacts = grasp.close_fingers(obj, check_approach=check_approach, vis=vis)
+            contacts_found, contacts = grasp.close_fingers(obj)
 
             if not contacts_found:
                 return 0, contacts_found

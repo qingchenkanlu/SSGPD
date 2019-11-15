@@ -21,4 +21,3 @@ MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 """
 from dexnet.constants import *
 from dexnet.abstractstatic import abstractstatic
-from dexnet.api import DexNet

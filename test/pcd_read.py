@@ -1,39 +1,22 @@
 # -*- coding: utf-8 -*-
-#
-# #include <iostream>
-# #include <pcl/io/pcd_io.h>
-# #include <pcl/point_types.h>
-#
-# int main (int argc, char** argv)
-# {
-#   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-#
-#   if (pcl::io::loadPCDFile<pcl::PointXYZ> ("test_pcd.pcd", *cloud) == -1) //* load the file
-#   {
-#     PCL_ERROR ("Couldn't read file test_pcd.pcd \n");
-#     return (-1);
-#   }
-#   std::cout << "Loaded "
-#             << cloud->width * cloud->height
-#             << " data points from test_pcd.pcd with the following fields: "
-#             << std::endl;
-#   for (size_t i = 0; i < cloud->points.size (); ++i)
-#     std::cout << "    " << cloud->points[i].x
-#               << " "    << cloud->points[i].y
-#               << " "    << cloud->points[i].z << std::endl;
-#
-#   return (0);
-# }
 
 import pcl
+import time
 import numpy as np
-import math
+import open3d as o3d
+
 
 def main():
     cloud = pcl.load('./cloud.pcd')
     normals = pcl.load('./normals_as_xyz.pcd')  # normals were saved as PointXYZ formate
     print('Loaded ' + str(cloud.width * cloud.height) +
           ' data points from cloud.pcd with the following fields: ')
+
+    start = time.perf_counter()
+    kd_tree = cloud.make_kdtree_flann()
+    point = pcl.PointCloud(cloud.to_array()[1500].reshape(1, 3))
+    kd_indices, sqr_distances = kd_tree.radius_search_for_cloud(point, 0.005, 27)
+    print("pcl take: ", time.perf_counter()-start)
 
     cloud = cloud.to_array()
     normals = normals.to_array()
@@ -47,6 +30,23 @@ def main():
     # for i in range(0, cloud.size):
     #     print('x: ' + str(cloud[i][0]) + ', y : ' +
     #           str(cloud[i][1]) + ', z : ' + str(cloud[i][2]))
+
+    """ use open3d """
+    pcd = o3d.io.read_point_cloud("./cloud.pcd")
+    print(pcd.points[0])
+
+    start = time.perf_counter()
+
+    pcd_tree = o3d.geometry.KDTreeFlann(pcd)
+    print("Find its neighbors with distance less than 0.2, paint green.")
+    [k, idx, _] = pcd_tree.search_radius_vector_3d(pcd.points[1500], 0.005)
+    print("o3d take: ", time.perf_counter() - start)
+
+    print(k)
+    print(idx)
+
+    print("Visualize the point cloud.")
+    o3d.visualization.draw_geometries([pcd])
 
 
 if __name__ == "__main__":

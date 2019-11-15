@@ -19,43 +19,15 @@ PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
 HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
 MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 """
-from dexnet.grasping.contacts import Contact3D, SurfaceWindow
-from dexnet.grasping.graspable_object import GraspableObject, GraspableObject3D
-from dexnet.grasping.grasp import Grasp, PointGrasp, ParallelJawPtGrasp3D
 from dexnet.grasping.gripper import RobotGripper
-from dexnet.grasping.grasp_quality_config import GraspQualityConfig, QuasiStaticGraspQualityConfig, \
-    RobustQuasiStaticGraspQualityConfig, GraspQualityConfigFactory
-from dexnet.grasping.quality import PointGraspMetrics3D
 from dexnet.grasping.random_variables import GraspableObjectPoseGaussianRV, ParallelJawGraspPoseGaussianRV, \
     ParamsGaussianRV
 from dexnet.grasping.robust_grasp_quality import QuasiStaticGraspQualityRV, RobustPointGraspMetrics3D
 from dexnet.grasping.grasp_quality_function import GraspQualityResult, GraspQualityFunction, \
     QuasiStaticQualityFunction, RobustQuasiStaticQualityFunction, GraspQualityFunctionFactory
 
-try:
-    from dexnet.grasping.collision_checker import OpenRaveCollisionChecker, GraspCollisionChecker
-except Exception:
-    print('Unable to import OpenRaveCollisionChecker and GraspCollisionChecker! Likely due to missing '
-          'OpenRave dependency.')
-    print('Install OpenRave 0.9 from source if required. Instructions can be found at '
-          'http://openrave.org/docs/latest_stable/coreapihtml/installation_linux.html')
-
-from dexnet.grasping.grasp_sampler import GraspSampler, UniformGraspSampler, GaussianGraspSampler, \
-    AntipodalGraspSampler, GpgGraspSampler, PointGraspSampler, GpgGraspSamplerPcl, GpgGraspSamplerPclPcd
-
-__all__ = ['Contact3D', 'GraspableObject', 'GraspableObject3D', 'ParallelJawPtGrasp3D',
-           'Grasp', 'PointGrasp', 'RobotGripper', 'PointGraspMetrics3D',
-           'GraspQualityConfig', 'QuasiStaticGraspQualityConfig', 'RobustQuasiStaticGraspQualityConfig',
-           'GraspQualityConfigFactory',
-           'GraspSampler', 'UniformGraspSampler', 'GaussianGraspSampler', 'AntipodalGraspSampler',
-           'GpgGraspSampler', 'PointGraspSampler', 'GpgGraspSamplerPcl',
+__all__ = ['RobotGripper',
            'GraspableObjectPoseGaussianRV', 'ParallelJawGraspPoseGaussianRV', 'ParamsGaussianRV',
            'QuasiStaticGraspQualityRV', 'RobustPointGraspMetrics3D',
            'GraspQualityResult', 'GraspQualityFunction', 'QuasiStaticQualityFunction',
-           'RobustQuasiStaticQualityFunction', 'GraspQualityFunctionFactory',
-           'OpenRaveCollisionChecker', 'GraspCollisionChecker', ]
-
-# module name spoofing for correct imports
-from dexnet.grasping import grasp
-import sys
-sys.modules['dexnet.grasp'] = grasp
+           'RobustQuasiStaticQualityFunction', 'GraspQualityFunctionFactory']

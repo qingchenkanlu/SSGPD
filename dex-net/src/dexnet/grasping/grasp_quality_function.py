@@ -36,10 +36,10 @@ import scipy.stats
 import sys
 import time
 
-from dexnet.grasping import Grasp, GraspableObject, GraspQualityConfig
+# from dexnet.grasping import Grasp, GraspableObject, GraspQualityConfig
 from dexnet.grasping.robust_grasp_quality import RobustPointGraspMetrics3D
 from dexnet.grasping.random_variables import GraspableObjectPoseGaussianRV, ParallelJawGraspPoseGaussianRV, ParamsGaussianRV
-from dexnet.grasping import PointGraspMetrics3D
+# from dexnet.grasping import PointGraspMetrics3D
 
 from autolab_core import RigidTransform
 import IPython

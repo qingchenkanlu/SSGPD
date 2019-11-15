@@ -1,3 +1,4 @@
+open3d-python
 scipy<=1.1.0
 sklearn
 h5py
@@ -23,5 +24,6 @@ autolab-core==0.0.4
 autolab-perception
 torch>=0.4.1
 tensorboardX
+mayavi
 PyQt4
 coloredlogs

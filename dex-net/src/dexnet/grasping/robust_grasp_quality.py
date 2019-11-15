@@ -37,8 +37,8 @@ import sys
 import time
 
 import autolab_core.random_variables as rvs
-from dexnet.grasping import PointGraspMetrics3D
-from dexnet.learning import MaxIterTerminationCondition, GaussianUniformAllocationMean, RandomContinuousObjective
+# from dexnet.grasping import PointGraspMetrics3D
+# from dexnet.learning import MaxIterTerminationCondition, GaussianUniformAllocationMean, RandomContinuousObjective
 
 import IPython
 

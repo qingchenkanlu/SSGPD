@@ -39,10 +39,6 @@ import sklearn.cluster
 from autolab_core import Point, RandomVariable
 from autolab_core.utils import skew, deskew
 
-from dexnet.grasping import ParallelJawPtGrasp3D, GraspableObject3D, GraspQualityConfig
-
-import meshpy.obj_file as obj_file
-import meshpy.sdf_file as sdf_file
 
 from autolab_core import SimilarityTransform
 

@@ -1,30 +1,8 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Copyright ©2017. The Regents of the University of California (Regents). All Rights Reserved.
-Permission to use, copy, modify, and distribute this software and its documentation for educational,
-research, and not-for-profit purposes, without fee and without a signed licensing agreement, is
-hereby granted, provided that the above copyright notice, this paragraph and the following two
-paragraphs appear in all copies, modifications, and distributions. Contact The Office of Technology
-Licensing, UC Berkeley, 2150 Shattuck Avenue, Suite 510, Berkeley, CA 94720-1620, (510) 643-
-7201, otl@berkeley.edu, http://ipira.berkeley.edu/industry-info for commercial licensing opportunities.
+# Author: MrRen-sdhm
 
-IN NO EVENT SHALL REGENTS BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL,
-INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF
-THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF REGENTS HAS BEEN
-ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-REGENTS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
-HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
-MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-"""
-"""
-Contact class that encapsulates friction cone and surface window computation. 封装摩擦锥和曲面窗口计算的接触类
-Authors: Brian Hou and Jeff Mahler
-"""
-
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 import itertools as it
 import logging
 import numpy as np
@@ -36,9 +14,13 @@ from dexnet.constants import NO_CONTACT_DIST
 from dexnet.constants import WIN_DIST_LIM
 import dexnet.visualization
 
-import IPython
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+
+import logging
+import coloredlogs
+logger = logging.getLogger(__name__)
+coloredlogs.install(level='INFO')
 
 
 # class Contact(metaclass=ABCMeta):  # for python3
@@ -46,32 +28,33 @@ class Contact:
     """ Abstract class for contact models. """
     __metaclass__ = ABCMeta
 
+
 class Contact3D(Contact):
     """ 3D contact points.
 
     Attributes
     ----------
-    graspable : :obj:`GraspableObject3D`
+    graspable : :obj:`GraspableObjectPcd`
         object to use to get contact information
     contact_point : 3x1 :obj:`numpy.ndarray`
         point of contact on the object
     in_direction : 3x1 :obj:`numpy.ndarray`
         direction along which contact was made
-    normal : normalized 3x1 :obj:`numpy.ndarray`
-        surface normal at the contact point
+    indice : the contact point's indice in graspable cloud
     """
 
-    def __init__(self, graspable, contact_point, in_direction=None):
+    def __init__(self, graspable, contact_point, point_indice, in_direction=None):
         self.graspable_ = graspable
         self.point_ = contact_point  # in world coordinates
 
         # cached attributes
         self.in_direction_ = in_direction  # inward facing grasp axis
         self.friction_cone_ = None
+        self.point_indice_ = point_indice
         self.normal_ = None  # outward facing normal
         self.surface_info_ = None
 
-        self._compute_normal()
+        self._correct_normal()
 
     @property
     def graspable(self):
@@ -93,26 +76,16 @@ class Contact3D(Contact):
     def in_direction(self):
         return self.in_direction_
 
-    def _compute_normal(self):
-        """Compute outward facing normal at contact, according to in_direction.
-        Indexes into the SDF grid coordinates to lookup the normal info.
-        """
-        # tf to grid
-        as_grid = self.graspable.sdf.transform_pt_obj_to_grid(self.point)
-        on_surface, _ = self.graspable.sdf.on_surface(as_grid)
-        if not on_surface:
-            logging.debug('Contact point not on surface')
-            return None
+    def _correct_normal(self):
+        """ Compute outward facing normal at contact, according to in_direction """
 
         # compute outward facing normal from SDF
-        normal = self.graspable.sdf.surface_normal(as_grid)
+        normal = self.graspable.normals[self.point_indice_]
 
         # flip normal to point outward if in_direction is defined
         if self.in_direction_ is not None and np.dot(self.in_direction_, normal) > 0:
+            logger.debug("correct normal of contact point!")
             normal = -normal
-
-        # transform to world frame
-        normal = self.graspable.sdf.transform_pt_grid_to_obj(normal, direction=True)
         self.normal_ = normal
 
     def tangents(self, direction=None, align_axes=True, max_samples=1000):
