@@ -1,0 +1,14 @@
+# Gripper params
+
+# important params
+"min_width": 0.02  # min distance between the two fingers, equal to min distance between the two contacts.
+"max_width": 0.1  # max distance between the two fingers, max width of gripper open area.
+"finger_width": 0.015  # width of finger.
+"hand_height": 0.018  # height of griper open area.
+"hand_depth": 0.075  # depth of griper open area.
+"init_bite": 0.01  # distance for gripper move backward from the object surface.
+
+"finger_radius": 0.01
+"real_finger_width": 0.01
+"real_hand_depth": 0.070
+"force_limit": 235.0

@@ -3,7 +3,6 @@ scipy<=1.1.0
 sklearn
 h5py
 numpy
-ipython<=5.5.0
 matplotlib==2.0.0
 NearPy
 Pillow>=6.2.0
@@ -15,7 +14,6 @@ six
 trimesh
 pyhull
 cvxopt
-mayavi
 pandas
 visualization
 pyquaternion

@@ -11,13 +11,10 @@ build/
 dex-net/apps/generated_grasps/
 .dexnet/
 
-PointNetGPD/assets/
-PointNetGPD/data/
-PointNetGPD/OLD/
-PointNetGPD/chann_12/
-PointNetGPDchann_3/
-PointNetGPD/fullpc/
-PointNetGPD/1view/
+Dataset/
+
+Classifier/assets/
+Classifier/data/
 
 3rdparty/python-pcl/
 3rdparty/autolab_core/build

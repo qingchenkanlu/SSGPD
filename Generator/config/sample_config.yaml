@@ -1,0 +1,8 @@
+# Grasping params
+
+grasp_sampler: antipodal
+target_num_grasps: 25
+max_grasp_sampling_iters: 5
+grasp_samples_per_surface_point: 2
+max_num_surface_points: 5  # sampling points num on obj surface
+min_contact_dist: 0.0025

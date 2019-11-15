@@ -726,7 +726,7 @@ class TensorDataset(object):
             config = json.load(open(config_filename, 'r'))
         except:
             # YAML load
-            config_filename = os.path.join(dataset_dir, 'config.yaml')
+            config_filename = os.path.join(dataset_dir, 'sample_config.yaml')
             config = YamlConfig(config_filename)
 
         # open dataset
