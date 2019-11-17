@@ -5,6 +5,7 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
 import time
+import scipy
 
 from autolab_core import RigidTransform
 from graspable_object import GraspableObject
@@ -15,6 +16,7 @@ import coloredlogs
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='INFO')
 
+np.seterr(divide='ignore',invalid='ignore')
 
 try:
     import mayavi.mlab as mlab
@@ -26,7 +28,7 @@ except:
         logging.error('Failed to import mayavi')
 
 
-class GraspSamplerO3d:
+class GraspSampler:
     """ Base class for various methods to sample a number of grasps on an object.
     Should not be instantiated directly.
 
@@ -317,7 +319,7 @@ class GraspSamplerO3d:
         mlab.show()
 
 
-class GpgGraspSamplerO3d(GraspSamplerO3d):
+class GpgGraspSampler(GraspSampler):
     """
     Sample grasps by GPG.
     http://journals.sagepub.com/doi/10.1177/0278364917735594
@@ -400,6 +402,7 @@ class GpgGraspSamplerO3d(GraspSamplerO3d):
         # get all grasps
         while len(grasps) < num_grasps and sampled_surface_amount < max_num_samples:
             # get candidate contacts
+            scipy.random.seed()  # important! without this, the worker will get a pseudo-random sequences.
             ind = np.random.choice(num_surface, size=1, replace=False)
             selected_surface = surface_points[ind, :].reshape(3)
 
@@ -629,7 +632,7 @@ class GpgGraspSamplerO3d(GraspSamplerO3d):
                     #     mlab.show()
 
             sampled_surface_amount += 1
-            logger.info("current amount of sampled surface %d", sampled_surface_amount)
+            logger.debug("current amount of sampled surface %d", sampled_surface_amount)
 
         # convert grasps to dexnet formate
         for grasp in processed_potential_grasp:

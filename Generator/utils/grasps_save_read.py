@@ -12,7 +12,7 @@ import pcl
 
 from gripper import RobotGripper
 from autolab_core import YamlConfig
-from Generator.grasp.grasp_sampler import GpgGraspSamplerO3d
+from Generator.grasp.grasp_sampler import GpgGraspSampler
 
 try:
     import mayavi.mlab as mlab
@@ -46,7 +46,7 @@ def show_grasps(obj, grasps):
     m_bad = m_bad[m_bad[:, 1] <= 3.0]
     m_bad = m_bad[np.random.choice(len(m_bad), size=5, replace=True)]  # 随机选择25个显示
 
-    ags = GpgGraspSamplerO3d(gripper, yaml_config)
+    ags = GpgGraspSampler(gripper, yaml_config)
 
     mlab.figure(bgcolor=(1, 1, 1), fgcolor=(0.7, 0.7, 0.7), size=(1024, 768))
     for good in m_good:
@@ -71,7 +71,7 @@ def show_grasps_range(obj, grasps, min_score=0.0, max_score=3.2):
         return
     m = m[np.random.choice(len(m), size=5, replace=True)]  # 随机选择25个显示
 
-    ags = GpgGraspSamplerO3d(gripper, yaml_config)
+    ags = GpgGraspSampler(gripper, yaml_config)
 
     mlab.figure(bgcolor=(1, 1, 1), fgcolor=(0.7, 0.7, 0.7), size=(1024, 768))
     for grasp in m:

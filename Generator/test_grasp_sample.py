@@ -7,7 +7,7 @@ import numpy as np
 import open3d as o3d
 
 from quality import PointGraspMetrics3D
-from grasp_sampler import GpgGraspSamplerO3d
+from grasp_sampler import GpgGraspSampler
 from graspable_object import GraspableObject
 from gripper import RobotGripper
 from autolab_core import YamlConfig
@@ -23,7 +23,7 @@ def test_grasp_sample():
     reload = False
     grasps = None
     # Test GpgGraspSamplerPcd
-    ags = GpgGraspSamplerO3d(gripper, sample_config)
+    ags = GpgGraspSampler(gripper, sample_config)
     if not reload:
         grasps = ags.sample_grasps(obj, num_grasps=5000, max_num_samples=10)
         grasps_save(grasps, "/home/sdhm/grasps/test_pcd")

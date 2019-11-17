@@ -613,11 +613,11 @@ class ParallelJawPtGrasp3D(PointGrasp):
                 logger.debug("close finger took %.4f" % (time.perf_counter() - start))
                 return True, contacts_list[max_index]
             else:
-                print("max(dist_list): ", max(dist_list))
-                print("close_width: ", self.min_grasp_width_)
-                logger.info("distance too short")
+                # print("max(dist_list): ", max(dist_list))
+                # print("close_width: ", self.min_grasp_width_)
+                logger.debug("distance too short")
 
-        logger.info("not found contacts")
+        logger.debug("not found contacts")
         logger.debug("close finger took %.4f" % (time.perf_counter() - start))
         return False, [None, None]
 
