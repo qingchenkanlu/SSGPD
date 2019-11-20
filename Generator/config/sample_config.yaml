@@ -1,8 +1,8 @@
 # Grasping params
 
 target_num_grasps: 2000
-max_num_samples: 5  # sampling points num on obj surface
-grasp_num_per_fc: 2
+max_num_samples: 50  # sampling points num on obj surface
+grasp_num_per_fc: 20
 num_worker_per_job: 10
 max_grasp_sampling_iters: 5
 

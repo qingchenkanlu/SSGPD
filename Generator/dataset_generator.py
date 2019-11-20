@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# Author     : Hongzhuo Liang 
-# E-mail     : liang@informatik.uni-hamburg.de
-# Description: 
-# Date       : 20/05/2018 2:45 PM
-# File Name  : dataset_generator.py
+# Author: MrRen-sdhm
 
 import os
 import numpy as np
@@ -39,7 +35,7 @@ def do_job(job_num):
     # all jobs done, prepare for data save
     good_grasp = list(good_grasp)
     good_grasp_file_name = os.path.join(file_list[job_num], 'grasps')
-    print("[DEBUG] Job %d save good grasps to file:" % job_num, good_grasp_file_name)
+    print("[WARN] Job %d save %d good grasps to file:%s.pickle" % (job_num, len(good_grasp), good_grasp_file_name))
     grasps_save(good_grasp, good_grasp_file_name)
 
     # tmp = []
@@ -106,10 +102,6 @@ def worker(job_num, worker_num, good_grasp):
                     break
     print("[INFO] Job %d worker %d good | min" % (job_num, worker_num), good_count_perfect, grasp_num_per_fc)
 
-    if count == 0:
-        good_grasp_rate = 0
-    else:
-        good_grasp_rate = len(good_grasp) / count
     print('[DEBUG] Job:', job_num, 'Worker:', worker_num, 'Object:', object_name, 'done.\n')
 
 
@@ -122,7 +114,7 @@ if __name__ == '__main__':
     sample_config = YamlConfig("./config/sample_config.yaml")
     gripper = RobotGripper.load("./config/gripper_params.yaml")
 
-    fc_list = [4.0, 3.0, 2.0, 1.7, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.35, 0.3]
+    fc_list = [4.0, 3.0, 2.0, 1.7, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]
     print("[fc_list]", fc_list)
 
     job_list = np.arange(object_numbers)

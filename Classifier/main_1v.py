@@ -5,7 +5,7 @@
 import argparse
 import os
 import time
-import pickle
+import open3d as o3d  # should import befor torch: https://github.com/intel-isl/Open3D/pull/1262
 
 import torch
 import torch.utils.data
@@ -16,12 +16,12 @@ import numpy as np
 from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
 
-from Classifier.model import *
-from Classifier.model import PointNetCls, DualPointNetCls
+from Classifier.model.dataset_ssgpd import PointGraspOneViewDataset
+from Classifier.model.pointnet import PointNetCls, DualPointNetCls
 
 # torch.set_printoptions(threshold=np.inf)
 
-parser = argparse.ArgumentParser(description='pointnetGPD')
+parser = argparse.ArgumentParser(description='SSGPD')
 parser.add_argument('--tag', type=str, default='default')
 parser.add_argument('--epoch', type=int, default=200)
 parser.add_argument('--mode', choices=['train', 'test'], required=True)
@@ -33,7 +33,7 @@ parser.add_argument('--load-model', type=str, default='')
 parser.add_argument('--load-epoch', type=int, default=-1)
 parser.add_argument('--model-path', type=str, default='./assets/learned_models',
                     help='pre-trained model path')
-parser.add_argument('--data-path', type=str, default='./data', help='data path')
+parser.add_argument('--data-path', type=str, default='../Dataset/fusion', help='data path')
 parser.add_argument('--log-interval', type=int, default=10)
 parser.add_argument('--save-interval', type=int, default=10)
 
@@ -67,9 +67,10 @@ train_loader = torch.utils.data.DataLoader(
         grasp_points_num=grasp_points_num,
         path=args.data_path,
         tag='train',
-        grasp_amount_per_file=2100,  # 6500
+        grasp_amount_per_obj=3200,
         thresh_good=thresh_good,
         thresh_bad=thresh_bad,
+        min_point_limit=150,
     ),
     batch_size=args.batch_size,
     num_workers=32,
@@ -85,9 +86,10 @@ test_loader = torch.utils.data.DataLoader(
         grasp_points_num=grasp_points_num,
         path=args.data_path,
         tag='test',
-        grasp_amount_per_file=2100,  # 500
+        grasp_amount_per_obj=3200,
         thresh_good=thresh_good,
         thresh_bad=thresh_bad,
+        min_point_limit=150,
         with_obj=True,
     ),
     batch_size=args.batch_size,

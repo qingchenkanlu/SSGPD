@@ -273,7 +273,7 @@ def check_collision_square(grasp_bottom_center, approach_normal, binormal,
             has_p = False
         else:
             has_p = True
-    # for the way of pointGPD/dataset.py:
+    # for the way of pointGPD/dataset_ycb.py:
     else:
         width = ags.gripper.hand_outer_diameter - 2 * ags.gripper.finger_width
         x_limit = ags.gripper.hand_depth

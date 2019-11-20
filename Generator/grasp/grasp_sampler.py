@@ -16,7 +16,7 @@ import coloredlogs
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='INFO')
 
-np.seterr(divide='ignore',invalid='ignore')
+np.seterr(divide='ignore', invalid='ignore')
 
 try:
     import mayavi.mlab as mlab
@@ -115,14 +115,14 @@ class GraspSampler:
         self.show_arrow([0, 0, 0], [0, 0, 1], 'b', 0.1)
 
     def show_grasp_norm_oneside(self, grasp_bottom_center,
-                                grasp_normal, grasp_axis, minor_pc, scale_factor=0.001):
+                                normal, major_pc, minor_pc, scale_factor=0.001):
         un2 = grasp_bottom_center
         self.show_points(grasp_bottom_center, color='g', scale_factor=scale_factor * 4)
-        mlab.quiver3d(un2[0], un2[1], un2[2], grasp_axis[0], grasp_axis[1], grasp_axis[2],
+        mlab.quiver3d(un2[0], un2[1], un2[2], major_pc[0], major_pc[1], major_pc[2],
                       scale_factor=.03, line_width=0.25, color=(0, 1, 0), mode='arrow')
         mlab.quiver3d(un2[0], un2[1], un2[2], minor_pc[0], minor_pc[1], minor_pc[2],
                       scale_factor=.03, line_width=0.1, color=(0, 0, 1), mode='arrow')
-        mlab.quiver3d(un2[0], un2[1], un2[2], grasp_normal[0], grasp_normal[1], grasp_normal[2],
+        mlab.quiver3d(un2[0], un2[1], un2[2], normal[0], normal[1], normal[2],
                       scale_factor=.03, line_width=0.05, color=(1, 0, 0), mode='arrow')
 
     def get_hand_points(self, grasp_bottom_center, approach_normal, binormal):
