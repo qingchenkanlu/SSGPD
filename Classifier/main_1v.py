@@ -25,7 +25,7 @@ parser = argparse.ArgumentParser(description='SSGPD')
 parser.add_argument('--tag', type=str, default='default')
 parser.add_argument('--epoch', type=int, default=200)
 parser.add_argument('--mode', choices=['train', 'test'], required=True)
-parser.add_argument('--batch-size', type=int, default=64)
+parser.add_argument('--batch-size', type=int, default=128)
 parser.add_argument('--cuda', action='store_true')
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--lr', type=float, default=0.005)
@@ -67,7 +67,7 @@ train_loader = torch.utils.data.DataLoader(
         grasp_points_num=grasp_points_num,
         path=args.data_path,
         tag='train',
-        grasp_amount_per_obj=3200,
+        grasp_amount_per_obj=320,
         thresh_good=thresh_good,
         thresh_bad=thresh_bad,
         min_point_limit=150,
@@ -86,7 +86,7 @@ test_loader = torch.utils.data.DataLoader(
         grasp_points_num=grasp_points_num,
         path=args.data_path,
         tag='test',
-        grasp_amount_per_obj=3200,
+        grasp_amount_per_obj=120,
         thresh_good=thresh_good,
         thresh_bad=thresh_bad,
         min_point_limit=150,
@@ -102,6 +102,9 @@ test_loader = torch.utils.data.DataLoader(
 )
 
 # 载入模型
+# args.load_model = '/home/sdhm/Projects/SSGPD/Classifier/assets/learned_models/default_160.model'
+# args.load_epoch = 160
+
 is_resume = 0
 if args.load_model and args.load_epoch != -1:
     is_resume = 1
@@ -201,9 +204,9 @@ def main():
             logger.add_scalar('train_acc', acc_train, epoch)
             logger.add_scalar('test_acc', acc, epoch)
             logger.add_scalar('test_loss', loss, epoch)
-            if epoch % args.save_interval == 0 and epoch > 0:
+            if epoch % args.save_interval == 0:
                 path = os.path.join(args.model_path, args.tag + '_{}.model'.format(epoch))
-                torch.save(model, path)
+                torch.save(model.state_dict(), path)
                 print('Save model @ {}'.format(path))
     else:
         print('testing...')

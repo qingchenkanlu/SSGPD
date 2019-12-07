@@ -27,7 +27,6 @@ except:
         mlab = []
         logging.error('Failed to import mayavi')
 
-
 class GraspSampler:
     """ Base class for various methods to sample a number of grasps on an object.
     Should not be instantiated directly.
@@ -233,14 +232,14 @@ class GraspSampler:
 
         return has_p, points_in_area
 
-    def show_all_grasps(self, grasps_for_show):
+    def show_all_grasps(self, grasps_for_show, color='lb'):
 
         for grasp_ in grasps_for_show:
             grasp_bottom_center = grasp_[4]  # new feature: ues the modified grasp bottom center
             approach_normal = grasp_[1]
             binormal = grasp_[2]
             hand_points = self.get_hand_points(grasp_bottom_center, approach_normal, binormal)
-            self.show_grasp_3d(hand_points)
+            self.show_grasp_3d(hand_points, color=color)
 
     def show_surface_points(self, graspable, color='lb', scale_factor=.002):
         surface_points = graspable.cloud
@@ -325,7 +324,7 @@ class GpgGraspSampler(GraspSampler):
     http://journals.sagepub.com/doi/10.1177/0278364917735594
     """
 
-    def sample_grasps(self, graspable, num_grasps, max_num_samples=30, vis=False, **kwargs):
+    def sample_grasps(self, graspable, num_grasps, max_num_samples=30, min_x=None, vis=False, **kwargs):
         """
         Returns a list of candidate grasps for graspable object using uniform point pairs from the SDF
 
@@ -335,6 +334,9 @@ class GpgGraspSampler(GraspSampler):
             the object to grasp
         num_grasps : int
             the number of grasps to generate
+        min_x : float
+            filter points by axis x
+            Note: YCB data don't use it!
         vis :
         max_num_samples :
 
@@ -368,9 +370,9 @@ class GpgGraspSampler(GraspSampler):
         surface_points = graspable.cloud_voxel
 
         # filter points by axis x
-        min_x = 0.002
-        selected_indices = np.where(surface_points[:, 0] > min_x)[0]
-        surface_points = surface_points[selected_indices]
+        if min_x is not None:
+            selected_indices = np.where(surface_points[:, 0] > min_x)[0]
+            surface_points = surface_points[selected_indices]
 
         num_surface = surface_points.shape[0]
         sampled_surface_amount = 0
@@ -379,7 +381,7 @@ class GpgGraspSampler(GraspSampler):
         grasp_test = []
 
         # visualize selected surface points and normals
-        if False:
+        if vis:
             for i in range(max_num_samples):
                 # get candidate contacts
                 ind = np.random.choice(num_surface, size=1, replace=False)
@@ -647,9 +649,9 @@ class GpgGraspSampler(GraspSampler):
                      min_width=self.gripper.min_width, normal=grasp_normal, minor_pc=minor_pc), type='frame')
             grasps.append(grasp3d)
 
-        if False:
+        if vis:
             logger.info("generate potential grasp %d", len(processed_potential_grasp))
-            self.show_all_grasps(processed_potential_grasp)
+            self.show_all_grasps(processed_potential_grasp, color='g')
             # self.show_all_grasps(grasp_test)
             self.show_points(all_points)
             # self.display_grasps3d(grasps, 'g')

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # Author: MrRen-sdhm
 
+import os
 import time
 import numpy as np
 import open3d as o3d
@@ -18,6 +19,8 @@ import coloredlogs
 logger = logging.getLogger(__name__)
 coloredlogs.install(level='INFO')
 
+DATASET = "ycb"  # ["fusion", "ycb"]
+
 
 def test_grasp_sample():
     reload = False
@@ -25,7 +28,8 @@ def test_grasp_sample():
     # Test GpgGraspSamplerPcd
     ags = GpgGraspSampler(gripper, sample_config)
     if not reload:
-        grasps = ags.sample_grasps(obj, num_grasps=5000, max_num_samples=10)
+        min_x = 0.002 if DATASET == "fusion" else None  # Note
+        grasps = ags.sample_grasps(obj, num_grasps=5000, max_num_samples=10, min_x=min_x, vis=True)
         grasps_save(grasps, "/home/sdhm/grasps/test_pcd")
         # exit()
 
@@ -123,14 +127,29 @@ def test_grasp_sample():
 
 
 if __name__ == '__main__':
-    file_dir = "./utils/extract_normals"
+    file_dir = None  # Note
+    if DATASET == "fusion":
+        file_dir = "./utils/extract_normals"
+    elif DATASET == "ycb":
+        file_dir = "./test/data"
+
     sample_config = YamlConfig("./config/sample_config.yaml")
     gripper = RobotGripper.load("./config/gripper_params.yaml")
 
-    cloud = o3d.io.read_point_cloud(file_dir + "/surface_cloud_with_normals.pcd")
-    cloud_voxel = o3d.io.read_point_cloud(file_dir + "/surface_cloud_voxel.pcd")
+    cloud = None
+    cloud_voxel = None
+    if DATASET == "fusion":  # Note
+        cloud = o3d.io.read_point_cloud(file_dir + "/surface_cloud_with_normals.pcd")
+        cloud_voxel = o3d.io.read_point_cloud(file_dir + "/surface_cloud_voxel.pcd")
+    elif DATASET == "ycb":
+        cloud = o3d.io.read_point_cloud(file_dir + "/nontextured.ply")
+        cloud_voxel_file = file_dir + "/nontextured_voxel.ply"
+        if not os.path.exists(cloud_voxel_file):
+            cloud_voxel = o3d.geometry.voxel_down_sample(cloud, voxel_size=0.008)
+            o3d.io.write_point_cloud(cloud_voxel_file, cloud_voxel)
+        else:
+            cloud_voxel = o3d.io.read_point_cloud(cloud_voxel_file)
 
     obj = GraspableObject(cloud, cloud_voxel)
 
-    # test_grasp_example()
     test_grasp_sample()

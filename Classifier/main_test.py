@@ -17,7 +17,7 @@ from Classifier.model import PointGraspDataset
 parser = argparse.ArgumentParser(description='pointnetGPD')
 parser.add_argument('--cuda', action='store_true', default=False)
 parser.add_argument('--gpu', type=int, default=0)
-parser.add_argument('--load-model', type=str, default=os.environ['HOME'] + '/code/grasp-pointnet/PointNetGPD/data/pointgpd_chann3_local.model')
+parser.add_argument('--load-model', type=str, default='/home/sdhm/Projects/SSGPD/Classifier/assets/default_160.model')
 parser.add_argument('--show_final_grasp', action='store_true', default=False)
 parser.add_argument('--tray_grasp', action='store_true', default=False)
 parser.add_argument('--using_mp', action='store_true', default=False)

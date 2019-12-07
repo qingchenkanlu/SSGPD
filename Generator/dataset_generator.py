@@ -14,6 +14,8 @@ from Generator.utils.grasps_save_read import grasps_save
 
 import multiprocessing
 
+DATASET = "ycb"  # ["fusion", "ycb"]
+
 
 def get_file_name(file_dir_):
     file_list = []
@@ -55,16 +57,32 @@ def worker(job_num, worker_num, good_grasp):
     grasp_num_per_fc = sample_config['grasp_num_per_fc']
 
     object_name = os.path.basename(file_list[job_num])
-    data_dir = os.path.join(file_dir, object_name, 'processed')
+
+    data_dir = None
+    cloud = None
+    cloud_voxel = None
+    if DATASET == "fusion":
+        data_dir = os.path.join(file_dir, object_name, 'processed')
+        print("Read cloud file:", data_dir + "/surface_cloud_with_normals.pcd")
+        cloud = o3d.io.read_point_cloud(data_dir + "/surface_cloud_with_normals.pcd")
+        print("Read cloud voxel file:", data_dir + "/surface_cloud_voxel.pcd")
+        cloud_voxel = o3d.io.read_point_cloud(data_dir + "/surface_cloud_voxel.pcd")
+    elif DATASET == "ycb":
+        data_dir = os.path.join(file_dir, object_name, 'google_512k')
+        print("Read cloud file:", data_dir + "/nontextured.ply")
+        cloud = o3d.io.read_point_cloud(data_dir + "/nontextured.ply")
+        cloud_voxel_file = data_dir + "/nontextured_voxel.ply"
+        if not os.path.exists(cloud_voxel_file):
+            print("Create cloud voxel file:", cloud_voxel_file)
+            cloud_voxel = o3d.geometry.voxel_down_sample(cloud, voxel_size=0.008)
+            o3d.io.write_point_cloud(cloud_voxel_file, cloud_voxel)
+        else:
+            print("Read cloud voxel file:", cloud_voxel_file)
+            cloud_voxel = o3d.io.read_point_cloud(cloud_voxel_file)
     print('[DEBUG] a worker of object {} start, job num:{}, worker num:{}'.format(object_name, job_num, worker_num))
 
     ags = GpgGraspSampler(gripper, sample_config)
-
-    cloud = o3d.io.read_point_cloud(data_dir + "/surface_cloud_with_normals.pcd")
-    cloud_voxel = o3d.io.read_point_cloud(data_dir + "/surface_cloud_voxel.pcd")
-
     obj = GraspableObject(cloud, cloud_voxel)
-
     good_count_perfect = np.zeros(len(fc_list), dtype=int)
 
     count = 0
@@ -106,8 +124,24 @@ def worker(job_num, worker_num, good_grasp):
 
 
 if __name__ == '__main__':
-    file_dir = "../Dataset/fusion"
-    file_list = get_file_name(file_dir)
+    file_dir = None
+    if DATASET == "fusion":
+        file_dir = "../Dataset/fusion"
+    elif DATASET == "ycb":
+        file_dir = "../Dataset/ycb/ycb_meshes_google"
+
+    file_list_tmp = get_file_name(file_dir)
+
+    # filter the objects which have been generated grasps
+    file_list = []
+    for file in file_list_tmp:
+        grasp_file_name = os.path.join(file, "grasps.pickle")
+        if not os.path.exists(grasp_file_name):
+            file_list.append(file)
+    if len(file_list) == 0:  # all objects have generated grasps
+        print("[INFO] All objects have been generated grasps!")
+        exit(0)
+
     object_numbers = len(file_list)
     print("[file_list]:", file_list, object_numbers, "\n")
 
@@ -116,6 +150,11 @@ if __name__ == '__main__':
 
     fc_list = [4.0, 3.0, 2.0, 1.7, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]
     print("[fc_list]", fc_list)
+
+    # test a worker
+    # good_grasp = []
+    # worker(1, 1, good_grasp)
+    # exit()
 
     job_list = np.arange(object_numbers)
     job_list = list(job_list)
@@ -137,9 +176,4 @@ if __name__ == '__main__':
                 p.start()
                 pool.append(p)
                 break
-
-    # test a worker
-    # good_grasp = []
-    # worker(0, 20, 10, good_grasp)
-    # exit()
 
