@@ -4,6 +4,7 @@
 
 import os
 import time
+import pickle
 import numpy as np
 import open3d as o3d
 
@@ -12,7 +13,7 @@ from grasp_sampler import GpgGraspSampler
 from graspable_object import GraspableObject
 from gripper import RobotGripper
 from autolab_core import YamlConfig
-from Generator.utils.grasps_save_read import grasps_save, grasps_read
+from Generator.utils.grasps_show import grasps_read
 
 import logging
 import coloredlogs
@@ -20,6 +21,11 @@ logger = logging.getLogger(__name__)
 coloredlogs.install(level='INFO')
 
 DATASET = "ycb"  # ["fusion", "ycb"]
+
+
+def grasps_save(grasps, filename):
+    with open(filename + '.pickle', 'wb') as f:
+        pickle.dump(grasps, f)
 
 
 def test_grasp_sample():

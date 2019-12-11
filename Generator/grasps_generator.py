@@ -3,6 +3,8 @@
 # Author: MrRen-sdhm
 
 import os
+import time
+import pickle
 import numpy as np
 import open3d as o3d
 from gripper import RobotGripper
@@ -10,11 +12,10 @@ from autolab_core import YamlConfig
 from quality import PointGraspMetrics3D
 from grasp_sampler import GpgGraspSampler
 from graspable_object import GraspableObject
-from Generator.utils.grasps_save_read import grasps_save
 
 import multiprocessing
 
-DATASET = "ycb"  # ["fusion", "ycb"]
+finished_job_num = multiprocessing.Manager().Value('i', 0)  # finished job counter
 
 
 def get_file_name(file_dir_):
@@ -24,6 +25,11 @@ def get_file_name(file_dir_):
             file_list.append(root)
     file_list.sort()
     return file_list
+
+
+def grasps_save(grasps, filename):
+    with open(filename + '.pickle', 'wb') as f:
+        pickle.dump(grasps, f)
 
 
 def do_job(job_num):
@@ -48,11 +54,12 @@ def do_job(job_num):
     #     tmp.append(np.concatenate([grasp_config, [score_friction, score_canny]]))
     # np.save(good_grasp_file_name + '.npy', np.array(tmp))
 
+    finished_job_num.value += 1
     print("\n[WARN] Finished job:", job_num, "object:", object_name)
 
 
 def worker(job_num, worker_num, good_grasp):
-    target_num_grasps = sample_config['target_num_grasps']
+    max_num_grasps = sample_config['max_num_grasps']
     max_num_samples = sample_config['max_num_samples']
     grasp_num_per_fc = sample_config['grasp_num_per_fc']
 
@@ -92,7 +99,7 @@ def worker(job_num, worker_num, good_grasp):
         # print("[INFO]:good < mini", good_count_perfect < grasp_num_per_fc,
         #       np.sum(good_count_perfect < grasp_num_per_fc))
         print("[INFO] Job %d worker %d sample grasps..." % (job_num, worker_num))
-        grasps = ags.sample_grasps(obj, num_grasps=target_num_grasps, max_num_samples=max_num_samples)
+        grasps = ags.sample_grasps(obj, num_grasps=max_num_grasps, max_num_samples=max_num_samples)
         # print("\033[0;32m%s\033[0m" % "[INFO] Worker{} generate {} grasps.".format(i, len(grasps)))
         count += len(grasps)
         for grasp in grasps:  # 遍历生成的抓取姿态, 判断是否为力闭合, 及其对应的摩擦系数
@@ -124,6 +131,8 @@ def worker(job_num, worker_num, good_grasp):
 
 
 if __name__ == '__main__':
+    DATASET = "fusion"  # ["fusion", "ycb"]
+
     file_dir = None
     if DATASET == "fusion":
         file_dir = "../Dataset/fusion"
@@ -143,22 +152,26 @@ if __name__ == '__main__':
         exit(0)
 
     object_numbers = len(file_list)
-    print("[file_list]:", file_list, object_numbers, "\n")
+    print("[file_list]:", file_list, "obj_num:", object_numbers, "\n")
 
     sample_config = YamlConfig("./config/sample_config.yaml")
     gripper = RobotGripper.load("./config/gripper_params.yaml")
 
-    fc_list = [4.0, 3.0, 2.0, 1.7, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]
-    print("[fc_list]", fc_list)
+    fc_list = [3.0, 2.0, 1.7, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]  # 15
+    #                                       |                        |              |
+    print("[fc_list]", fc_list, "len:", len(fc_list))
 
     # test a worker
     # good_grasp = []
     # worker(1, 1, good_grasp)
     # exit()
 
+    start_time = time.time()
     job_list = np.arange(object_numbers)
     job_list = list(job_list)
-    pool_size = 2  # number of jobs did at same time
+    pool_size = 1
+    if len(job_list) > 1:
+        pool_size = 2  # number of jobs did at same time
     assert (pool_size <= len(job_list))
     # Initialize pool
     pool = []
@@ -176,4 +189,18 @@ if __name__ == '__main__':
                 p.start()
                 pool.append(p)
                 break
+    
+    # wait for all job done
+    while True:
+        if finished_job_num.value == object_numbers:
+            grasps_num = sample_config['num_worker_per_job'] * (object_numbers * len(fc_list) * sample_config['grasp_num_per_fc'])
+            print("[INFO] generated %d grasps for %d obj in %ds" % (grasps_num, object_numbers, time.time() - start_time))
+            break
+
+    # log
+    # [INFO] generated 6000 grasps for 2 obj in 447s
+    # [INFO] generated 6000 grasps for 2 obj in 401s
+
+
+
 

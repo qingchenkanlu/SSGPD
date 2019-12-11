@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # Author     : MrRen-sdhm
-# File Name  : grasps_save_read.py
+# File Name  : grasps_show.py
 
 import numpy as np
 import open3d as o3d
@@ -23,15 +23,14 @@ except:
         logging.error('Failed to import mayavi')
 
 
-def show_grasps_info(grasps):
-    min_scores = np.linspace(0.0, 3.2, num=30)
+def show_grasps_info(grasps, min_scores):
     print("total grasps: %d" % len(grasps))
     print("[min-max]: num")
     for min_score in min_scores:
         max_score = min_score + 0.1
 
         m = np.array(grasps)
-        m = m[m[:, 1] <= max_score]
+        m = m[m[:, 1] < max_score]
         m = m[m[:, 1] >= min_score]
         print("[%.1f-%.1f]: %d" % (min_score, max_score, len(m)))
 
@@ -54,7 +53,7 @@ def show_grasps(obj, grasps, ply_name=None):
         ags.show_surface_points(obj)
     else:
         mlab.pipeline.surface(mlab.pipeline.open(ply_name))
-    mlab.title("good", size=0.5)
+    mlab.title("good", size=0.5, color=(0, 0, 0))
     # mlab.show()
 
     mlab.figure(bgcolor=(1, 1, 1), fgcolor=(0.7, 0.7, 0.7), size=(1024, 768))
@@ -64,13 +63,13 @@ def show_grasps(obj, grasps, ply_name=None):
         ags.show_surface_points(obj)
     else:
         mlab.pipeline.surface(mlab.pipeline.open(ply_name))
-    mlab.title("bad", size=0.5)
+    mlab.title("bad", size=0.5, color=(0, 0, 0))
     mlab.show()
 
 
 def show_grasps_range(obj, grasps, ply_name=None, min_score=0.0, max_score=3.2):
     m = np.array(grasps)
-    m = m[m[:, 1] <= max_score]  # NOTE: 摩擦系数<=0.6为质量高的抓取
+    m = m[m[:, 1] < max_score]
     m = m[m[:, 1] >= min_score]
     if not len(m) > 0:
         return
@@ -85,7 +84,8 @@ def show_grasps_range(obj, grasps, ply_name=None, min_score=0.0, max_score=3.2):
         ags.show_surface_points(obj)
     else:
         mlab.pipeline.surface(mlab.pipeline.open(ply_name))
-    mlab.title("%.1f-%.1f" % (min_score, max_score), size=0.5)
+    print("Show [%.1f-%.1f)" % (min_score, max_score))
+    mlab.title("[%.1f-%.1f)" % (min_score, max_score), size=0.5, color=(0, 0, 0))
     mlab.show()
 
 
@@ -152,12 +152,14 @@ if __name__ == '__main__':
     gripper = RobotGripper.load("../config/gripper_params.yaml")
 
     graspable_obj = GraspableObject(cloud, cloud_voxel)
-    show_grasps(graspable_obj, grasps, ply_name=mesh_path)
-    # show_grasps_range(obj, grasps, min_score=0.0, max_score=0.5)
-    show_grasps_info(grasps)
+    # show_grasps(graspable_obj, grasps, ply_name=mesh_path)
 
-    min_scores = np.linspace(0.0, 3.2, num=30)
-    # print(min_scores)
+    min_scores = np.linspace(0.0, 4.0, num=40, endpoint=False)
+    print("min_scores:", min_scores, len(min_scores))
+    show_grasps_info(grasps, min_scores)
+
+    # show_grasps_range(obj, grasps, min_score=0.0, max_score=0.5)
+
     for min_score in min_scores:
         show_grasps_range(graspable_obj, grasps, ply_name=mesh_path, min_score=min_score, max_score=min_score+0.1)
 

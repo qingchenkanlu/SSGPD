@@ -16,7 +16,7 @@ import numpy as np
 from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
 
-from Classifier.model.dataset_ssgpd import PointGraspOneViewDataset
+from Classifier.model.dataset_ssgpd_runtime import PointGraspOneViewDataset
 from Classifier.model.pointnet import PointNetCls, DualPointNetCls
 
 # torch.set_printoptions(threshold=np.inf)

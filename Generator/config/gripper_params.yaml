@@ -4,7 +4,7 @@
 "min_width": 0.01  # min distance between the two fingers, equal to min distance between the two contacts.
 "max_width": 0.1  # max distance between the two fingers, max width of gripper open area.
 "finger_width": 0.015  # width of finger.
-"hand_height": 0.018  # height of griper open area.
+"hand_height": 0.025  # height of griper open area. 0.018
 "hand_depth": 0.075  # depth of griper open area.
 "init_bite": 0.01  # distance for gripper move backward from the object surface.
 

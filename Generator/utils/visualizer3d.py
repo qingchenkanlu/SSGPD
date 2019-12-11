@@ -43,7 +43,7 @@ class MayaviVisualizer3D(object):  # Note: add by MrRen-sdhm
         mlab.plot3d([un1[0], un2[0]], [un1[1], un2[1]], [un1[2], un2[2]], color=color_f, tube_radius=scale_factor)
 
     @staticmethod
-    def show_arrow(point, direction, color='lb'):
+    def show_arrow(point, direction, color='lb', scale_factor=.03):
         if color == 'b':
             color_f = (0, 0, 1)
         elif color == 'r':
@@ -55,12 +55,19 @@ class MayaviVisualizer3D(object):  # Note: add by MrRen-sdhm
         else:
             color_f = (1, 1, 1)
         mlab.quiver3d(point[0], point[1], point[2], direction[0], direction[1], direction[2],
-                      scale_factor=.03, line_width=0.05, color=color_f, mode='arrow')
+                      scale_factor=scale_factor, line_width=0.05, color=color_f, mode='arrow')
+
+    def show_origin(self, scale_factor=.03):
+        self.show_arrow([0, 0, 0], [1, 0, 0], 'r', scale_factor)
+        self.show_arrow([0, 0, 0], [0, 1, 0], 'g', scale_factor)
+        self.show_arrow([0, 0, 0], [0, 0, 1], 'b', scale_factor)
 
     def show_surface_points(self, obj, color='lb'):
         surface_points, _ = obj.sdf.surface_points(grid_basis=False)
         self.show_points(surface_points,color=color)
 
     @staticmethod
-    def show():
+    def show(title=None):
+        if title is not None:
+            mlab.title(title, size=0.5, color=(0, 0, 0))
         mlab.show()

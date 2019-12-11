@@ -46,9 +46,9 @@ class GraspSampler:
 
     def _configure(self, config):
         """ Configures the grasp generator."""
-        self.target_num_grasps = config['target_num_grasps']
-        if self.target_num_grasps is None:
-            self.target_num_grasps = config['min_num_grasps']
+        self.max_num_grasps = config['max_num_grasps']
+        if self.max_num_grasps is None:
+            self.max_num_grasps = config['min_num_grasps']
         if 'max_num_surface_points' in list(config.keys()):
             self.max_num_surface_points_ = config['max_num_surface_points']
         else:
@@ -108,10 +108,10 @@ class GraspSampler:
         mlab.quiver3d(point[0], point[1], point[2], direction[0], direction[1], direction[2],
                       scale_factor=scale_factor, line_width=0.05, color=color_f, mode='arrow')
 
-    def show_origin(self):
-        self.show_arrow([0, 0, 0], [1, 0, 0], 'r', 0.1)
-        self.show_arrow([0, 0, 0], [0, 1, 0], 'g', 0.1)
-        self.show_arrow([0, 0, 0], [0, 0, 1], 'b', 0.1)
+    def show_origin(self, scale_factor=0.1):
+        self.show_arrow([0, 0, 0], [1, 0, 0], 'r', scale_factor)
+        self.show_arrow([0, 0, 0], [0, 1, 0], 'g', scale_factor)
+        self.show_arrow([0, 0, 0], [0, 0, 1], 'b', scale_factor)
 
     def show_grasp_norm_oneside(self, grasp_bottom_center,
                                 normal, major_pc, minor_pc, scale_factor=0.001):
@@ -125,6 +125,10 @@ class GraspSampler:
                       scale_factor=.03, line_width=0.05, color=(1, 0, 0), mode='arrow')
 
     def get_hand_points(self, grasp_bottom_center, approach_normal, binormal):
+        grasp_bottom_center = np.array(grasp_bottom_center)
+        approach_normal = np.array(approach_normal)
+        binormal = np.array(binormal)
+
         hh = self.gripper.hand_height
         fw = self.gripper.finger_width
         hod = self.gripper.hand_outer_diameter
@@ -314,7 +318,9 @@ class GraspSampler:
         mlab.figure(bgcolor=(0.5, 0.5, 0.5), size=(size, size))
 
     @staticmethod
-    def show():
+    def show(title=None):
+        if title is not None:
+            mlab.title(title, size=0.5, color=(0, 0, 0))
         mlab.show()
 
 

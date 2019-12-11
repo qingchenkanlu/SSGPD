@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# Author     : MrRen-sdhm
+# File Name  : dataset_generator.py
+# generate dataset for torch at runtime.
+
 import os
 import sys
 import glob
@@ -119,7 +125,7 @@ class PointGraspOneViewDataset(torch.utils.data.Dataset):
             # print("[INFO] points num", len(self.in_ind))
             return None
 
-        if False:  # 显示手抓闭合区域内点云
+        if True:  # 显示手抓闭合区域内点云
             mlab.figure(bgcolor=(1, 1, 1), size=(1000, 800))
             mlab.pipeline.surface(mlab.pipeline.open("/home/sdhm/Projects/SSGPD/Dataset/fusion/2018-04-24-15-57-16/processed/mesh.ply"))
             ags.show_origin()
@@ -220,7 +226,7 @@ if __name__ == '__main__':
 
     b = PointGraspOneViewDataset(
         grasp_points_num=grasp_points_num,
-        path="../../Dataset/ycb",
+        path="../../Dataset/fusion",
         tag='train',
         grasp_amount_per_obj=50,
         thresh_good=thresh_good,

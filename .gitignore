@@ -166,6 +166,9 @@ tags
 # ignore pickle file
 *.pickle
 
+# ignore npy file
+*.npy
+
 # for latex files
 *.aux
 *.log
