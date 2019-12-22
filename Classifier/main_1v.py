@@ -1,10 +1,12 @@
 # usage:
-#     train: python main_1v.py --mode train --epoch 200 --cuda
-#     reload: python main_1v.py --mode train --epoch 200 --cuda --load-model default_120.model --load-epoch 120
+#     train: python main_1v.py --mode train
+#     reload: python main_1v.py --mode train --load-model default_120.model --load-epoch 120
+#     tensorboard: tensorboard --logdir ./assets/log/pointnet --port 8080
 
 import argparse
 import os
 import time
+import logging
 import open3d as o3d  # should import befor torch: https://github.com/intel-isl/Open3D/pull/1262
 
 import torch
@@ -13,22 +15,24 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
+
+from datetime import datetime
 from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
 
-from Classifier.model.dataset_ssgpd_runtime import PointGraspOneViewDataset
+from Classifier.model.dataset_ssgpd import OneViewDatasetLoader
 from Classifier.model.pointnet import PointNetCls, DualPointNetCls
 
 # torch.set_printoptions(threshold=np.inf)
 
 parser = argparse.ArgumentParser(description='SSGPD')
-parser.add_argument('--tag', type=str, default='default')
+parser.add_argument('--tag', type=str, default='pointnet')
 parser.add_argument('--epoch', type=int, default=200)
 parser.add_argument('--mode', choices=['train', 'test'], required=True)
 parser.add_argument('--batch-size', type=int, default=128)
-parser.add_argument('--cuda', action='store_true')
+parser.add_argument('--cuda', type=bool, default=True)
 parser.add_argument('--gpu', type=int, default=0)
-parser.add_argument('--lr', type=float, default=0.005)
+parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--load-model', type=str, default='')
 parser.add_argument('--load-epoch', type=int, default=-1)
 parser.add_argument('--model-path', type=str, default='./assets/learned_models',
@@ -44,7 +48,22 @@ args.cuda = args.cuda if torch.cuda.is_available else False
 if args.cuda:
     torch.cuda.manual_seed(1)
 
-logger = SummaryWriter(os.path.join('./assets/log/', args.tag))
+TIMESTAMP = "{0:%Y_%m%d_%H%M}".format(datetime.now())
+logdir = os.path.join('./assets/log/', args.tag, TIMESTAMP)
+os.mkdir(logdir)
+tensorboard = SummaryWriter(logdir)
+
+logger = logging.getLogger(args.tag)
+logger.setLevel(logging.INFO)
+if args.mode == 'train':
+    formatter = logging.Formatter('%(asctime)s %(message)s')
+    file_handler = logging.FileHandler(logdir + '/train_%s.txt' % args.tag)
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    logger.info('---------------------------------------------------TRANING---------------------------------------------------')
+    logger.info(args)
+
 np.random.seed(int(time.time()))
 
 
@@ -57,20 +76,14 @@ def my_collate(batch):  # 用于处理__getitem__返回值为None的情况, 选�
     return torch.utils.data.dataloader.default_collate(batch)
 
 
-grasp_points_num = 750
-thresh_good = 0.6
-thresh_bad = 0.6
+grasp_points_num = 1024
 point_channel = 3
 
 train_loader = torch.utils.data.DataLoader(
-    PointGraspOneViewDataset(
+    OneViewDatasetLoader(
         grasp_points_num=grasp_points_num,
-        path=args.data_path,
+        dataset_path=args.data_path,
         tag='train',
-        grasp_amount_per_obj=320,
-        thresh_good=thresh_good,
-        thresh_bad=thresh_bad,
-        min_point_limit=150,
     ),
     batch_size=args.batch_size,
     num_workers=32,
@@ -82,15 +95,11 @@ train_loader = torch.utils.data.DataLoader(
 )
 
 test_loader = torch.utils.data.DataLoader(
-    PointGraspOneViewDataset(
+    OneViewDatasetLoader(
         grasp_points_num=grasp_points_num,
-        path=args.data_path,
+        dataset_path=args.data_path,
         tag='test',
-        grasp_amount_per_obj=120,
-        thresh_good=thresh_good,
-        thresh_bad=thresh_bad,
-        min_point_limit=150,
-        with_obj=True,
+        max_data_num=None
     ),
     batch_size=args.batch_size,
     num_workers=32,
@@ -131,6 +140,7 @@ scheduler = StepLR(optimizer, step_size=30, gamma=0.5)
 
 def train(model, loader, epoch):
     scheduler.step()
+    scheduler.get_lr()
     model.train()
     torch.set_grad_enabled(True)
     correct = 0
@@ -156,12 +166,13 @@ def train(model, loader, epoch):
         pred = output.data.max(1, keepdim=True)[1]
         correct += pred.eq(target.view_as(pred)).long().cpu().sum()
         if batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\t{}'.format(epoch, batch_idx * args.batch_size,
-                                                                               len(loader.dataset),
-                                                                               100. * batch_idx * args.batch_size / len(
-                                                                                   loader.dataset), loss.item(),
-                                                                               args.tag))
-            logger.add_scalar('train_loss', loss.cpu().item(), batch_idx + epoch * len(loader))
+            log_str = '[INFO] Train Epoch:{} Lr:{} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\t{}'.format(epoch, scheduler.get_lr(),
+                                                                                        batch_idx * args.batch_size, len(loader.dataset),
+                                                                                        100. * batch_idx * args.batch_size / len(
+                                                                                        loader.dataset), loss.item(), args.tag)
+            print(log_str)
+            logger.info(log_str)
+            tensorboard.add_scalar('train_loss', loss.cpu().item(), batch_idx + epoch * len(loader))
     return float(correct) / float(dataset_size)
 
 
@@ -171,10 +182,10 @@ def test(model, loader):
     test_loss = 0
     correct = 0
     dataset_size = 0
-    da = {}
-    db = {}
-    res = []
-    for data, target, obj_name in loader:
+
+    # res = []
+    # for data, target, obj_name in loader:
+    for data, target in loader:
         dataset_size += data.shape[0]
         data, target = data.float(), target.long().squeeze()
         if args.cuda:
@@ -183,8 +194,8 @@ def test(model, loader):
         test_loss += F.nll_loss(output, target, size_average=False).cpu().item()
         pred = output.data.max(1, keepdim=True)[1]
         correct += pred.eq(target.view_as(pred)).long().cpu().sum()
-        for i, j, k in zip(obj_name, pred.data.cpu().numpy(), target.data.cpu().numpy()):
-            res.append((i, j[0], k))
+        # for i, j, k in zip(obj_name, pred.data.cpu().numpy(), target.data.cpu().numpy()):
+        #     res.append((i, j[0], k))
 
     test_loss /= len(loader.dataset)
     acc = float(correct) / float(dataset_size)
@@ -198,20 +209,24 @@ def main():
     if args.mode == 'train':
         for epoch in range(is_resume * args.load_epoch, args.epoch+1):
             acc_train = train(model, train_loader, epoch)
-            print('Train done, acc={}'.format(acc_train))
+            log_str = '[INFO] Train done, acc={}'.format(acc_train)
+            print(log_str)
+            logger.info(log_str)
             acc, loss = test(model, test_loader)
-            print('Test done, acc={}, loss={}'.format(acc, loss))
-            logger.add_scalar('train_acc', acc_train, epoch)
-            logger.add_scalar('test_acc', acc, epoch)
-            logger.add_scalar('test_loss', loss, epoch)
+            log_str = '[INFO] Test done, acc={}, loss={}'.format(acc, loss)
+            print(log_str)
+            logger.info(log_str)
+            tensorboard.add_scalar('train_acc', acc_train, epoch)
+            tensorboard.add_scalar('test_acc', acc, epoch)
+            tensorboard.add_scalar('test_loss', loss, epoch)
             if epoch % args.save_interval == 0:
                 path = os.path.join(args.model_path, args.tag + '_{}.model'.format(epoch))
                 torch.save(model.state_dict(), path)
-                print('Save model @ {}'.format(path))
+                print('[MARK] Save model @ {}'.format(path))
     else:
         print('testing...')
         acc, loss = test(model, test_loader)
-        print('Test done, acc={}, loss={}'.format(acc, loss))
+        print('[INFO] Test done, acc={}, loss={}'.format(acc, loss))
 
 
 if __name__ == "__main__":

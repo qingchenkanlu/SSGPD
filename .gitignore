@@ -12,6 +12,7 @@ dex-net/apps/generated_grasps/
 .dexnet/
 
 Dataset/
+data/
 
 Classifier/assets/
 Classifier/data/
@@ -23,6 +24,9 @@ Classifier/data/
 3rdparty/autolab_perception/autolab_perception.egg-info
 3rdparty/meshpy/build
 3rdparty/meshpy/meshpy.egg-info
+
+experiment/
+eval_experiment/
 
 # CMake
 cmake-build-debug/
@@ -75,6 +79,7 @@ wheels/
 *.egg
 *.zip
 *.tar.gz
+*.backup
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -177,3 +182,8 @@ tags
 *.snm
 *.toc
 *.synctex.gz
+
+# torch model
+*.pth
+*.pt
+*.t7

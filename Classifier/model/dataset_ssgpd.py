@@ -16,10 +16,11 @@ import torch.nn as nn
 
 
 class OneViewDatasetLoader(torch.utils.data.Dataset):
-    def __init__(self, grasp_points_num, dataset_path, tag):
+    def __init__(self, grasp_points_num, dataset_path, tag, max_data_num=None):
         self.grasp_points_num = grasp_points_num
         self.dataset_path = dataset_path
         self.tag = tag
+        self.max_data_num = max_data_num
 
         fls_grasp = []
         for dirpath, dirnames, files in os.walk(dataset_path):
@@ -44,7 +45,11 @@ class OneViewDatasetLoader(torch.utils.data.Dataset):
 
         self.dataset = np.concatenate(dataset)
         np.random.shuffle(self.dataset)  # 打乱数据
-        self.amount = len(self.dataset)
+
+        if self.max_data_num is None:
+            self.amount = len(self.dataset)
+        else:
+            self.amount = self.max_data_num
 
         # 检查数据分布
         bad_num = good_num = 0
@@ -53,7 +58,8 @@ class OneViewDatasetLoader(torch.utils.data.Dataset):
                 bad_num += 1
             elif data[1] == 1:
                 good_num += 1
-        print("[DEBUG] data num:%d bad_num:%d good_num: %d in dataset" % (self.amount, bad_num, good_num))
+
+        print("[DEBUG] %s data num:%d bad_num:%d good_num: %d in dataset" % (self.tag, self.amount, bad_num, good_num))
 
     def __getitem__(self, index):
         grasp_pc = self.dataset[index][0]
@@ -61,10 +67,10 @@ class OneViewDatasetLoader(torch.utils.data.Dataset):
 
         # 点数不够则有放回采样, 点数太多则随机采样
         if len(grasp_pc) > self.grasp_points_num:
-            print("[DEBUG] points in grasp_pc:%d > grasp_points_num:%d | Downsampling." % (len(grasp_pc), self.grasp_points_num))
+            # print("[DEBUG] points in grasp_pc:%d > grasp_points_num:%d | Downsampling." % (len(grasp_pc), self.grasp_points_num))
             grasp_pc = grasp_pc[np.random.choice(len(grasp_pc), size=self.grasp_points_num, replace=False)].T
         else:
-            print("[DEBUG] points in grasp_pc:%d < grasp_points_num:%d | Upsampling." % (len(grasp_pc), self.grasp_points_num))
+            # print("[DEBUG] points in grasp_pc:%d < grasp_points_num:%d | Upsampling." % (len(grasp_pc), self.grasp_points_num))
             grasp_pc = grasp_pc[np.random.choice(len(grasp_pc), size=self.grasp_points_num, replace=True)].T
 
         return grasp_pc, label
@@ -86,7 +92,7 @@ if __name__ == '__main__':
     hand_points = ags.get_hand_points([0, 0, 0], [1, 0, 0], [0, 1, 0])  # hand in origion coordinate
 
     dataset = OneViewDatasetLoader(
-        grasp_points_num=1000,
+        grasp_points_num=1024,
         dataset_path="../../Dataset/fusion",
         tag='train'
     )

@@ -6,6 +6,7 @@
 
 import os
 import glob
+import time
 import pickle
 
 import numpy as np
@@ -198,7 +199,7 @@ class OneViewDatasetGenerator:
         print("[DEBUG] pc amount per grasp:", self.pc_amount_per_grasp)
         print("[DEBUG] grasp num per score:", grasp_num_per_score)
         print("[INFO] data num per score:", data_num_per_score)
-        print("[INFO] will generate %d data:", data_num_per_score * len(score_ls))
+        print("[INFO] will generate data num:", data_num)
 
         def generate_data_per_grasp():
             dataset_tmp = []
@@ -227,7 +228,7 @@ class OneViewDatasetGenerator:
                     if count_per_score[ind - 1] < data_num_per_score and score == data[1]:
                         dataset.append(data)
                         count_per_score[ind - 1] += 1
-            print("count_per_score:", count_per_score)
+            print("count per score:", count_per_score)
 
         # 验证各score对应抓取数据量
         # score_dic = {}
@@ -242,15 +243,16 @@ class OneViewDatasetGenerator:
         dataset = np.array(dataset)  # [[grasp_pc1, score1], [grasp_pc2, score2] ... [grasp_pcn, scoren]]
         print("[INFO] Generated dataset with %d pair of cloud and score." % len(dataset))
         np.save(dataset_file_path, dataset)
-        return dataset
+        return data_num
 
     def __len__(self):
         return self.data_amount
 
 
 if __name__ == '__main__':
-    config = {'pc_amount_per_grasp': 4, 'min_point_limit': 500, 'test_data_percent': 0.2}
+    config = {'pc_amount_per_grasp': 8, 'min_point_limit': 500, 'test_data_percent': 0.2}
 
+    start_time = time.time()
     dataset_path = "../Dataset/fusion"
     fl_grasps = []
     for dirpath, dirnames, files in os.walk(dataset_path):
@@ -261,16 +263,22 @@ if __name__ == '__main__':
 
     ''' Step1: 为每个物品创建抓取数据, 包含点云以及score, 生成grasps_with_score*.npy文件 '''
     print("[MARK] =======  Step1: generate dataset for every object  ======")
+    data_num_generated = 0
     for fl_grasp in fl_grasps:
         obj_path = os.path.dirname(fl_grasp)
         dataset = OneViewDatasetGenerator(fl_grasp, config['pc_amount_per_grasp'], config['min_point_limit'])
-        dataset.generate_dataset()
+        data_num = dataset.generate_dataset()
+        data_num_generated += data_num
+    print("[INFO] gererated %d data in %ds" % (data_num_generated, time.time()-start_time))
 
     ''' Step2: 划分数据集, 每个物品的20%作为测试集 '''
     print("[MARK] =======  Step2: split dataset as train and test set  ======")
     test_data_percent = config['test_data_percent']
     thresh_good = 0.45
     thresh_bad = 0.75
+
+    train_data_num = 0
+    test_data_num = 0
     for fl_grasp in fl_grasps:  # 每个物品对应一个抓取姿态文件, 遍历各个物品
         obj_path = os.path.dirname(fl_grasp)
         dataset_path = glob.glob(obj_path + "/grasps_with_score*.npy")[0]
@@ -334,4 +342,9 @@ if __name__ == '__main__':
         # 保存数据集文件
         np.save(obj_path + "/dataset_train_%s.npy" % str(len(dataset_train)), dataset_train)
         np.save(obj_path + "/dataset_test_%s.npy" % str(len(dataset_test)), dataset_test)
+        test_data_num += len(dataset_test)
+        train_data_num += len(dataset_train)
         # exit()
+
+        print("[INFO] gererated %d train data and %d test data for %d obj in %ds" % (
+                                                train_data_num, test_data_num, len(fl_grasps), time.time()-start_time))
