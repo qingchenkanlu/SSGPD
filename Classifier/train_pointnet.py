@@ -1,6 +1,6 @@
 # usage:
-#     train: python main_1v.py --mode train
-#     reload: python main_1v.py --mode train --load-model default_120.model --load-epoch 120
+#     train: python train_pointnet.py --mode train
+#     reload: python train_pointnet.py --mode train --load-model default_120.model --load-epoch 120
 #     tensorboard: tensorboard --logdir ./assets/log/pointnet --port 8080
 
 import argparse
@@ -20,7 +20,7 @@ from datetime import datetime
 from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
 
-from Classifier.model.dataset_ssgpd import OneViewDatasetLoader
+from Classifier.model.dataset_loader import OneViewDatasetLoader
 from Classifier.model.pointnet import PointNetCls, DualPointNetCls
 
 # torch.set_printoptions(threshold=np.inf)
@@ -37,7 +37,6 @@ parser.add_argument('--load-model', type=str, default='')
 parser.add_argument('--load-epoch', type=int, default=-1)
 parser.add_argument('--model-path', type=str, default='./assets/learned_models',
                     help='pre-trained model path')
-parser.add_argument('--data-path', type=str, default='../Dataset/fusion', help='data path')
 parser.add_argument('--log-interval', type=int, default=10)
 parser.add_argument('--save-interval', type=int, default=10)
 
@@ -76,13 +75,21 @@ def my_collate(batch):  # 用于处理__getitem__返回值为None的情况, 选�
     return torch.utils.data.dataloader.default_collate(batch)
 
 
+DATASET = "ycb"  # ["fusion", "ycb"]
+
+datapath = None
+if DATASET == "fusion":
+    datapath = "../../Dataset/fusion"
+elif DATASET == "ycb":
+    datapath = "../../Dataset/ycb/ycb_meshes_google"
+
 grasp_points_num = 1024
 point_channel = 3
 
 train_loader = torch.utils.data.DataLoader(
     OneViewDatasetLoader(
         grasp_points_num=grasp_points_num,
-        dataset_path=args.data_path,
+        dataset_path=datapath,
         tag='train',
     ),
     batch_size=args.batch_size,

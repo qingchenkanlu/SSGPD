@@ -86,7 +86,7 @@ class PointGraspOneViewDataset(torch.utils.data.Dataset):
 
         # NOTE: c:center bc:bottom center p:point cloud
         matrix_p2bc = np.array([normal, major_pc, minor_pc])  # 旋转矩阵: 点云坐标系->底部中心点坐标系
-        pc_p2bc = (np.dot(matrix_p2bc, (pc-bottom_center).T)).T  # 原始坐标系下点云转换到中心点坐标系下
+        pc_p2bc = (np.dot(matrix_p2bc, (pc-bottom_center).T)).T  # 原始坐标系下点云转换到中心点坐标google2cloud.pkl系下
 
         if False:  # NOTE：此处获得的抓取姿态可能与点云存在碰撞(影响不是很大)！！！ TODO：碰撞检查
             mlab.figure(bgcolor=(1, 1, 1), size=(1000, 800))

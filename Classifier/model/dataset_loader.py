@@ -84,6 +84,14 @@ if __name__ == '__main__':
     from Generator.grasp.grasp_sampler import GpgGraspSampler
     from Generator.grasp.gripper import RobotGripper
 
+    DATASET = "ycb"  # ["fusion", "ycb"]
+
+    dateset_dir = None
+    if DATASET == "fusion":
+        dateset_dir = "../../Dataset/fusion"
+    elif DATASET == "ycb":
+        dateset_dir = "../../Dataset/ycb/ycb_meshes_google"
+
     curr_path = os.path.dirname(os.path.abspath(__file__))
     print("[DEBUG] curr_path", curr_path)
     sample_config = YamlConfig(curr_path + "/../../Generator/config/sample_config.yaml")
@@ -93,7 +101,7 @@ if __name__ == '__main__':
 
     dataset = OneViewDatasetLoader(
         grasp_points_num=1024,
-        dataset_path="../../Dataset/fusion",
+        dataset_path=dateset_dir,
         tag='train'
     )
 

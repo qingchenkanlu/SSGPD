@@ -21,14 +21,20 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 # from data import ModelNet40
-from Classifier.model.dataset_ssgpd import OneViewDatasetLoader
+from Classifier.model.dataset_loader import OneViewDatasetLoader
 from model import PointNet, DGCNN
 import numpy as np
 from torch.utils.data import DataLoader
 from util import cal_loss, IOStream
 import sklearn.metrics as metrics
 
-datapath = "../../Dataset/fusion"
+DATASET = "ycb"  # ["fusion", "ycb"]
+
+datapath = None
+if DATASET == "fusion":
+    datapath = "../../Dataset/fusion"
+elif DATASET == "ycb":
+    datapath = "../../Dataset/ycb/ycb_meshes_google"
 
 
 def _init_():

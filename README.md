@@ -85,8 +85,14 @@ cd $HOME/code/
     gedit SSGPD/Generator/gripper_params.yaml
     ```
 
-
 ### Generate Grasp Dataset
+
+If use ycb dataset，generate point cloud first.
+
+```
+cd Dataset/ycb
+python ycb_cloud_generate.py
+```
 
 Generate dataset by running the code:
 

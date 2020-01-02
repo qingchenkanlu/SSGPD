@@ -1,6 +1,6 @@
 # usage:
-#     train: python main_1v.py --mode train --epoch 200 --cuda
-#     reload: python main_1v.py --mode train --epoch 200 --cuda --load-model default_120.model --load-epoch 120
+#     train: python train_pointnet.py --mode train --epoch 200 --cuda
+#     reload: python train_pointnet.py --mode train --epoch 200 --cuda --load-model default_120.model --load-epoch 120
 
 import argparse
 import os

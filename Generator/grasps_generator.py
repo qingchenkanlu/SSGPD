@@ -131,7 +131,7 @@ def worker(job_num, worker_num, good_grasp):
 
 
 if __name__ == '__main__':
-    DATASET = "fusion"  # ["fusion", "ycb"]
+    DATASET = "ycb"  # ["fusion", "ycb"]
 
     file_dir = None
     if DATASET == "fusion":
